@@ -4,7 +4,8 @@ services:
     container_name: colometria-postgres
     restart: unless-stopped
     ports:
-      - "5433:5432"
+      # Só neste PC — não publicar 0.0.0.0 (rede local / túnel acidental).
+      - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: colometria
       POSTGRES_PASSWORD: colometria

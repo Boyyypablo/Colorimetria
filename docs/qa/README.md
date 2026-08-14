@@ -17,14 +17,14 @@
 | URL | Quem | Notas |
 |-----|------|-------|
 | `http://localhost:3000/` | público | Landing → register / analyze |
-| `/login` | público | Demo: `usuaria@colometria.app` / `colometria123` |
+| `/login` | público | Demo local: `usuaria@colometria.app` / `colometria123` |
 | `/register` | público | Checkbox LGPD obrigatório |
 | `/dashboard` | USER+ | Lista de análises |
 | `/analyze` | USER+ | Upload + consentimento biométrico |
 | `/analyses/[id]` | dona ou staff | Resultado, VTO, pedir revisão |
 | `/consultant` | CONSULTANT / ADMIN | Fila de revisão |
 
-Contas seed (após `npm run db:seed`):
+Contas seed **só no Postgres local** (após `npm run db:seed`; bloqueadas em produção):
 
 - `usuaria@colometria.app` / `colometria123` — USER  
 - `consultora@colometria.app` / `colometria123` — CONSULTANT  

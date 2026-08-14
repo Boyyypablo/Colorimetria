@@ -8,7 +8,7 @@ Produto web de **colorimetria pessoal** (imagens primeiro): análise sazonal CIE
 - **PostgreSQL próprio** (Docker Compose, porta **5433**) + Prisma — **sem Supabase**
 - Auth.js (email/senha)
 - Storage local privado em `uploads/` (servido só via API autenticada)
-- VTO: Hugging Face Inference Providers (`HF_TOKEN`) — também Gemini / fal / mock
+- Looks de roupa: catálogo próprio na análise (silhuetas + paleta). VTO cloud (HF/Gemini/fal) estacionado sem crédito.
 
 ## Subir o ambiente
 
@@ -29,7 +29,9 @@ npm run dev
 
 Abra http://localhost:3000
 
-### Contas demo (seed)
+### Contas demo (seed local)
+
+Só existem no Postgres de **localhost**. O seed **não** cria admin/consultora se `NODE_ENV=production` ou se `DATABASE_URL` não for loopback. Nunca rode `db:seed` contra o banco de produção (nem via `ssh -L`).
 
 | Email | Senha | Papel |
 |-------|-------|-------|
@@ -73,7 +75,7 @@ chmod +x scripts/vps-up.sh
 ```
 
 - App: `http://SEU_IP:3000` (ou domínio atrás de Caddy/Nginx + HTTPS)
-- Crie a conta pela UI de registro (ou rode o seed localmente apontando ao DB via `ssh -L`)
+- Crie a conta pela UI de registro. **Não** use o seed de usuários demo na VPS.
 - Firewall: liberar só `22` e `3000` (ou `80/443` se usar proxy)
 
 ## Testes
@@ -81,6 +83,19 @@ chmod +x scripts/vps-up.sh
 ```bash
 npm test
 ```
+
+## Estrutura do repositório
+
+| Pasta | Função |
+|-------|--------|
+| `src/` | App Next.js (UI, API, libs) |
+| `prisma/` | Schema e migrations |
+| `data/` | Dados de domínio versionados (ex.: paletas) |
+| `docs/` | Arquitetura do produto + QA |
+| `scripts/` | Utilitários (build Vercel, ML export, VPS) |
+| `aprendizado/` | **Única pasta de estudo/referência** (material + designs Figma) |
+| `uploads/` | Imagens privadas (local, gitignored) |
+| `artifacts/` | Exports ML (gitignored) |
 
 ## LGPD
 
@@ -92,7 +107,7 @@ Plano vivo (face detect pluggable + modelo treinável): [`docs/architecture/colo
 
 ```bash
 # .env
-FACE_DETECTOR=heuristic   # trocar para blazeface|onnx-yunet quando o adapter estiver pronto
+FACE_DETECTOR=blazeface   # heuristic só se quiser forçar o paraquedas
 COLOR_PREDICTOR=rules     # trocar para tabular-v1 após treino
 ```
 
