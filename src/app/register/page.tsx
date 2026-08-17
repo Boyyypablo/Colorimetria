@@ -6,6 +6,7 @@ import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { GlowingLogo } from "@/components/GlowingLogo";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -63,8 +64,8 @@ export default function RegisterPage() {
     <main className="shell flex min-h-screen items-center justify-center py-10">
       <div className="card w-full max-w-md space-y-5">
         <div>
-          <Link href="/" className="font-display text-2xl">
-            Colorimetria
+          <Link href="/" className="inline-block">
+            <GlowingLogo size="md" bg="light" />
           </Link>
           <h1 className="mt-3 font-display text-3xl">Criar conta</h1>
         </div>
@@ -125,7 +126,7 @@ export default function RegisterPage() {
             >
               Autorizo o tratamento dos meus dados pessoais e da imagem facial
               para colorimetria, conforme a LGPD. Posso solicitar exclusão
-              posteriormente. Seus dados ficam em servidor próprio da Colorimetria.
+              posteriormente. Seus dados ficam em servidor próprio da Glowing.
             </Label>
           </div>
           {error && <p className="text-sm text-red-700">{error}</p>}

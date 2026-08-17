@@ -21,6 +21,8 @@
     "db:reset": "prisma migrate reset --force",
     "retention:purge": "tsx scripts/purge-expired.ts",
     "ml:export": "tsx scripts/ml-export.ts",
+    "knowledge:transcribe": "python scripts/knowledge/transcribe_academy.py",
+    "wardrobe:build": "tsx scripts/wardrobe/build-photos.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

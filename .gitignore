@@ -35,11 +35,15 @@ yarn-error.log*
 !.env.example
 !.env.production.example
 
-# material de referência (PDFs/vídeos grandes — fora do deploy)
-/material
+# material de referência / aprendizado (PDFs, vídeo, exports Figma)
+/aprendizado/material
+/aprendizado/designs
 
 # uploads privados (imagens faciais)
 /uploads
+
+# candidatos brutos do pack de looks (só os processados entram no git)
+/data/wardrobe/photos/candidates
 
 # export de treino ML
 /artifacts
@@ -59,3 +63,7 @@ next-env.d.ts
 # QA living docs — generated views & bulky evidence (source of truth: docs/qa/scenarios/ etc.)
 docs/qa/state.csv
 docs/qa/evidence/
+
+# onboarding / apresentação (local — não versionar)
+docs/apresentacao-sistema.md
+docs/roteiro-apresentacao.md

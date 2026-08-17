@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SEASON_PALETTES } from "../../../data/palettes/seasons";
 import {
   buildRecommendations,
   getSeasonById,
@@ -8,12 +9,35 @@ import {
   contrastBandFromScore,
   SISTER_SEASONS,
 } from "@/lib/color/season-knowledge";
+import { SEASON_PACKS } from "@/lib/color/season-packs";
 
 describe("season-knowledge", () => {
   it("contraste mapeia faixas", () => {
     expect(contrastBandFromScore(30)).toBe("high");
     expect(contrastBandFromScore(20)).toBe("medium");
     expect(contrastBandFromScore(10)).toBe("low");
+  });
+
+  it("as 12 estações têm pack fino", () => {
+    expect(SEASON_PALETTES).toHaveLength(12);
+    for (const season of SEASON_PALETTES) {
+      const pack = SEASON_PACKS[season.id];
+      expect(pack).toBeDefined();
+      if (!pack) continue;
+      expect(pack.styleTips.length).toBeGreaterThanOrEqual(4);
+      expect(pack.makeupTips.length).toBeGreaterThanOrEqual(3);
+      expect(pack.hairTips.length).toBeGreaterThanOrEqual(3);
+      expect(pack.avoidNotes.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("verão suave cita a irmã outono suave", () => {
+    const season = getSeasonById("soft_summer")!;
+    const coaching = buildSeasonCoaching(season, {
+      getSeasonName: (id) => getSeasonById(id)?.namePt,
+    });
+    expect(coaching.sisterNote).toMatch(/Outono Suave/i);
+    expect(coaching.styleTips.join(" ")).toMatch(/suave|cinza|malva/i);
   });
 
   it("inverno brilhante tem irmã primavera brilhante", () => {
@@ -27,6 +51,9 @@ describe("season-knowledge", () => {
     expect(coaching.sisterNote).toMatch(/Primavera Brilhante/i);
     expect(coaching.avoidNotes.join(" ")).toMatch(/Outono Suave/i);
     expect(coaching.styleTips.join(" ")).toMatch(/brilho|óptico|optic|cetim/i);
+    expect(coaching.offPaletteTips.join(" ")).toMatch(/fora|distância|longe/i);
+    expect(coaching.offPaletteTips.join(" ")).not.toMatch(/todas as cores da paleta/i);
+    expect(coaching.styleTips.join(" ")).toMatch(/perto do rosto/i);
   });
 });
 

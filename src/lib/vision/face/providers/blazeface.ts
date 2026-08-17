@@ -21,6 +21,9 @@ async function loadModel(): Promise<BlazeFaceModel> {
   if (!modelPromise) {
     modelPromise = (async () => {
       const tf = await import("@tensorflow/tfjs");
+      if (typeof window === "undefined") {
+        await tf.setBackend("cpu");
+      }
       await tf.ready();
       const blazeface = await import("@tensorflow-models/blazeface");
       return blazeface.load({ maxFaces: 3 }) as Promise<BlazeFaceModel>;
@@ -48,7 +51,7 @@ function asProb(
 
 /**
  * BlazeFace (TF.js) — bbox real em selfies.
- * Ativar: FACE_DETECTOR=blazeface
+ * Padrão: FACE_DETECTOR=blazeface (heuristic só fallback ou env explícito).
  * Exceção de load/runtime → factory faz fallback para heuristic.
  * Zero rostos → primary null (não inventa face).
  */

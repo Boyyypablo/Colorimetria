@@ -8,7 +8,7 @@ const heuristic = new HeuristicFaceDetector();
 export function resolveFaceDetectorId(
   raw = process.env.FACE_DETECTOR,
 ): FaceDetectorId {
-  const id = (raw || "heuristic").toLowerCase();
+  const id = (raw?.trim() || "blazeface").toLowerCase();
   if (id === "blazeface" || id === "onnx-yunet" || id === "heuristic") return id;
   return "heuristic";
 }

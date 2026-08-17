@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
+import { GlowingLogo } from "@/components/GlowingLogo";
 
 export async function AppHeader() {
   const session = await auth();
@@ -8,8 +9,8 @@ export async function AppHeader() {
 
   return (
     <header className="shell flex items-center justify-between py-5">
-      <Link href="/" className="font-display text-2xl tracking-tight">
-        Colorimetria
+      <Link href="/" className="shrink-0">
+        <GlowingLogo size="sm" bg="light" />
       </Link>
       <nav className="flex items-center gap-3 text-sm">
         {session ? (

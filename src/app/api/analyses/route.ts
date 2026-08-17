@@ -7,10 +7,13 @@ import { analyzeImageBuffer } from "@/lib/color/classifier";
 import { parseAnalysisGoals } from "@/lib/color/goals";
 import { buildRecommendations, getSeasonById } from "@/lib/color/recommendations";
 import { generateConsultantPlan } from "@/lib/ai/consultant";
+import { evaluateWithRubric } from "@/lib/knowledge/evaluate";
+import { decideAnalysisStatus, presentEvaluation } from "@/lib/knowledge/explain";
+import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 const INTENTION_MAX = 600;
 
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
   });
 
   try {
-    const result = await analyzeImageBuffer(buffer);
+    const result = applyPhotoIntake(await analyzeImageBuffer(buffer), parsePhotoIntake(form));
     const season = getSeasonById(result.seasonId);
     if (!season) {
       throw new Error("Estação não encontrada");
@@ -118,6 +121,15 @@ export async function POST(request: Request) {
       valueScore: result.features.valueScore,
       contrastScore: result.features.contrastScore,
     });
+
+    const opinion = evaluateWithRubric({
+      features: result.features,
+      photoQuality: result.photoQuality,
+      seasonId: season.id,
+      goals,
+    });
+    const evaluation = presentEvaluation(opinion, season.namePt, season.id);
+    recommendations = { ...recommendations, evaluation };
 
     const ai = await generateConsultantPlan({
       intention,
@@ -145,16 +157,17 @@ export async function POST(request: Request) {
       };
     }
 
-    const needsReview =
-      result.needsReview ||
-      Boolean(ai.plan?.needsHumanReview) ||
-      ai.meta.status === "error";
-    const status = needsReview ? "NEEDS_REVIEW" : "READY";
+    const needsReviewStatus = decideAnalysisStatus({
+      classifierNeedsReview: result.needsReview,
+      rubricNeedsReview: opinion.needsReview,
+      planNeedsHumanReview: Boolean(ai.plan?.needsHumanReview),
+      consultantError: ai.meta.status === "error",
+    });
 
     const analysis = await prisma.analysis.update({
       where: { id: pending.id },
       data: {
-        status,
+        status: needsReviewStatus,
         seasonId: result.seasonId,
         confidence: result.confidence,
         features: result.features,

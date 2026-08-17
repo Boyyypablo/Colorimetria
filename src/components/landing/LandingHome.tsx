@@ -9,6 +9,7 @@ import {
   LANDING_SEASON_SWATCHES,
 } from "@/lib/landing-images";
 import { LandingServiceCard } from "@/components/landing/LandingServiceCard";
+import { GlowingLogo } from "@/components/GlowingLogo";
 
 type Props = {
   loggedIn: boolean;
@@ -71,12 +72,12 @@ const STEPS = [
   {
     n: "03",
     title: "Sua cartela",
-    desc: "Receba a estação, a paleta e o porquê das cores — com recomendações ranqueadas para você.",
+    desc: "A estação, os eixos (temperatura, valor, croma, contraste) e o porquê — com revisão se a foto não der evidência.",
   },
   {
     n: "04",
     title: "Aplicação prática",
-    desc: "Plano de mudanças, cuidados com a pele quando pedir e simulação visual das cores no seu rosto.",
+    desc: "Plano de mudanças e cuidados com a pele quando você pedir. Sem simulação gerada por IA no lançamento.",
   },
 ] as const;
 
@@ -115,8 +116,8 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
         className={`lp-nav${scrolled ? " lp-nav--scrolled" : ""}`}
         aria-label="Principal"
       >
-        <Link href="/" className="lp-nav-brand font-display">
-          Colorimetria
+        <Link href="/" className="lp-nav-brand">
+          <GlowingLogo size="sm" bg="light" />
         </Link>
 
         <div className="lp-nav-desktop">
@@ -442,12 +443,10 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
       </section>
 
       <footer className="lp-footer">
-        <p className="font-display text-[0.95rem] text-[rgba(250,247,240,0.4)]">
-          Colorimetria
-        </p>
+        <GlowingLogo size="md" bg="dark" />
         <p className="text-[0.75rem] tracking-[0.08em] text-[rgba(250,247,240,0.25)]">
-          © {new Date().getFullYear()} · Colorimetria pessoal · Dados tratados
-          conforme a LGPD
+          © {new Date().getFullYear()} · Glowing · Dados tratados conforme a
+          LGPD
         </p>
       </footer>
     </div>

@@ -1,38 +1,97 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { TriangleAlert } from "lucide-react";
 import {
   ANALYSIS_GOAL_OPTIONS,
   DEFAULT_ANALYSIS_GOALS,
   type AnalysisGoalId,
 } from "@/lib/color/goals";
 import { PHOTO_QUALITY_TIPS } from "@/lib/color/photo-tips";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverDescription,
-  PopoverHeader,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
+import { detectFaceInBrowser } from "@/lib/vision/face/browser";
+import { coverFocusPosition } from "@/lib/vision/face/frame";
+
+const CONTEXTS: Array<{
+  id: "casual" | "trabalho" | "noite";
+  label: string;
+  sub: string;
+}> = [
+  { id: "casual", label: "Casual", sub: "Dia a dia, compras, passeios" },
+  { id: "trabalho", label: "Trabalho", sub: "Reuniões, escritório, apresentações" },
+  { id: "noite", label: "Noite", sub: "Eventos, jantares, celebrações" },
+];
+
+const INTENTION_MIN = 8;
+const INTENTION_MAX = 600;
+
+type FormState = "idle" | "sending" | "error";
 
 export function AnalyzeForm() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [goals, setGoals] = useState<AnalysisGoalId[]>([
-    ...DEFAULT_ANALYSIS_GOALS,
-  ]);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+  const frameGen = useRef(0);
+  const photoUrlRef = useRef<string | null>(null);
+
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [objectPosition, setObjectPosition] = useState("50% 40%");
+  const [faceStatus, setFaceStatus] = useState<"idle" | "locating" | "found" | "miss">(
+    "idle",
+  );
+  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [intention, setIntention] = useState("");
-  const [tipsOk, setTipsOk] = useState(false);
-  const [tipsOpen, setTipsOpen] = useState(false);
-  const [biometricConsent, setBiometricConsent] = useState(false);
+  const [goals, setGoals] = useState<AnalysisGoalId[]>([...DEFAULT_ANALYSIS_GOALS]);
+  const [context, setContext] = useState<"casual" | "trabalho" | "noite" | "">("");
+  const [lgpd, setLgpd] = useState(false);
+  const [makeupOnPhoto, setMakeupOnPhoto] = useState(false);
+  const [dyedHair, setDyedHair] = useState(false);
+  const [artificialLight, setArtificialLight] = useState(false);
+  const [formState, setFormState] = useState<FormState>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const allTipsConfirmed = PHOTO_QUALITY_TIPS.every((tip) => checklist[tip.id]);
+  const trimmedIntention = intention.trim();
+  const canSubmit =
+    Boolean(photoFile) &&
+    allTipsConfirmed &&
+    trimmedIntention.length >= INTENTION_MIN &&
+    goals.length > 0 &&
+    Boolean(context) &&
+    lgpd;
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    const url = URL.createObjectURL(file);
+    photoUrlRef.current = url;
+    setPhotoFile(file);
+    setPhotoUrl(url);
+    setObjectPosition("50% 40%");
+    setFaceStatus("locating");
+
+    const gen = ++frameGen.current;
+    try {
+      const result = await detectFaceInBrowser(file);
+      if (gen !== frameGen.current) return;
+      const frame = dropzoneRef.current;
+      const pos = coverFocusPosition(
+        result.box.x + result.box.width / 2,
+        result.box.y + result.box.height * 0.42,
+        result.imageWidth,
+        result.imageHeight,
+        frame?.clientWidth ?? 640,
+        frame?.clientHeight ?? 320,
+      );
+      setObjectPosition(`${pos.x}% ${pos.y}%`);
+      setFaceStatus(result.found ? "found" : "miss");
+    } catch {
+      if (gen !== frameGen.current) return;
+      setObjectPosition("50% 40%");
+      setFaceStatus("miss");
+    }
+  }
 
   function toggleGoal(id: AnalysisGoalId) {
     setGoals((prev) =>
@@ -40,226 +99,317 @@ export function AnalyzeForm() {
     );
   }
 
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (intention.trim().length < 8) {
-      setError(
-        "Conte o que você quer trabalhar (ex.: valorizar o olhar, suavizar olheiras).",
-      );
-      return;
-    }
-    if (goals.length === 0) {
-      setError("Selecione pelo menos um objetivo para a análise.");
-      return;
-    }
-    if (!tipsOk) {
-      setError("Confirme o checklist de qualidade da foto antes de enviar.");
-      setTipsOpen(true);
-      return;
-    }
-    if (!biometricConsent) {
-      setError("Confirme o consentimento para processar a foto.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const form = e.currentTarget;
-    const fd = new FormData(form);
+  async function handleSubmit() {
+    if (!canSubmit || !photoFile || !context) return;
+    setFormState("sending");
+    setErrorMessage(null);
+
+    const fd = new FormData();
+    fd.set("image", photoFile);
     fd.set("biometricConsent", "true");
     fd.set("photoTipsConfirmed", "true");
-    fd.set("intention", intention.trim());
-    for (const g of goals) {
-      fd.append("goals", g);
-    }
+    fd.set("intention", trimmedIntention);
+    fd.set("makeupOnPhoto", makeupOnPhoto ? "true" : "false");
+    fd.set("dyedHair", dyedHair ? "true" : "false");
+    fd.set("artificialLight", artificialLight ? "true" : "false");
+    for (const g of goals) fd.append("goals", g);
+    fd.set("context", context);
 
-    const res = await fetch("/api/analyses", { method: "POST", body: fd });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error || "Não foi possível concluir a análise.");
-      return;
+    try {
+      const res = await fetch("/api/analyses", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error || "Não foi possível concluir a análise.");
+        setFormState("error");
+        return;
+      }
+      router.push(`/analyses/${data.analysis.id}`);
+    } catch {
+      setErrorMessage("Falha de conexão. Verifique sua internet e tente novamente.");
+      setFormState("error");
     }
-    router.push(`/analyses/${data.analysis.id}`);
+  }
+
+  if (formState === "sending") {
+    return (
+      <div className="af-fullscreen">
+        <div className="af-spinner" aria-hidden />
+        <p className="af-fullscreen__title">Enviando sua análise…</p>
+        <p className="af-fullscreen__text">
+          Sua foto e informações estão sendo processadas com segurança.
+        </p>
+      </div>
+    );
+  }
+
+  if (formState === "error") {
+    return (
+      <div className="af-fullscreen">
+        <p className="af-fullscreen__title">Algo deu errado.</p>
+        <p className="af-fullscreen__text">
+          {errorMessage ||
+            "Não foi possível enviar sua análise. Verifique sua conexão e tente novamente."}
+        </p>
+        <button
+          type="button"
+          className="af-fullscreen__btn"
+          onClick={() => setFormState("idle")}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
   }
 
   return (
-    <form onSubmit={onSubmit} className="card space-y-5">
-      <div className="space-y-3">
-        <Popover open={tipsOpen} onOpenChange={setTipsOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              className="h-auto w-full justify-start gap-3 border-[color-mix(in_srgb,var(--warn)_50%,transparent)] bg-[color-mix(in_srgb,var(--warn)_12%,#fffdf9)] px-3 py-3 text-left whitespace-normal text-[var(--ink)] shadow-[inset_4px_0_0_0_var(--warn)] hover:bg-[color-mix(in_srgb,var(--warn)_18%,#fffdf9)] hover:text-[var(--ink)]"
-            >
-              <TriangleAlert
-                className="size-5 shrink-0 text-[var(--warn)]"
-                aria-hidden
+    <div className="af-shell">
+      <div className="af-intro">
+        <p className="af-eyebrow">Análise de cor pessoal</p>
+        <h1 className="af-title">
+          Vamos descobrir
+          <br />
+          <em>sua paleta.</em>
+        </h1>
+        <p className="af-lede">
+          Envie sua foto e conte o que quer trabalhar. Nossa consultora
+          revisará cada detalhe com cuidado — sem pressa.
+        </p>
+      </div>
+
+      {/* 01 — Foto */}
+      <AfSection number="01" title="Sua foto" subtitle="A base da análise">
+        <div
+          ref={dropzoneRef}
+          className={`af-dropzone ${photoUrl ? "af-dropzone--filled" : ""}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => fileRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
+          }}
+        >
+          {photoUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoUrl}
+                alt="Prévia da foto enviada"
+                className="af-dropzone__preview"
+                style={{ objectPosition }}
               />
-              <span className="flex min-w-0 flex-col gap-0.5">
-                <span className="font-display text-base text-[var(--warn)]">
-                  Atenção — checklist da foto
-                </span>
-                <span className="text-sm font-normal text-[var(--muted)]">
-                  {tipsOk
-                    ? "Condições confirmadas. Toque para revisar."
-                    : "Leia antes de enviar a foto — obrigatório para analisar."}
-                </span>
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            side="bottom"
-            sideOffset={8}
-            className="w-[min(100vw-2rem,22rem)] gap-3 border-[color-mix(in_srgb,var(--warn)_35%,transparent)] bg-[#fffdf9] p-3.5 text-[var(--ink)]"
-          >
-            <PopoverHeader>
-              <PopoverTitle className="font-display text-base text-[var(--warn)]">
-                Boa foto = cores que fazem sentido
-              </PopoverTitle>
-              <PopoverDescription className="text-[var(--muted)]">
-                Confira estes pontos antes de analisar.
-              </PopoverDescription>
-            </PopoverHeader>
-            <ul className="space-y-2 text-sm leading-snug">
-              {PHOTO_QUALITY_TIPS.map((tip) => (
-                <li key={tip.id} className="flex gap-2">
-                  <span aria-hidden className="font-bold text-[var(--warn)]">
-                    !
-                  </span>
-                  <span>{tip.label}</span>
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-start gap-2 rounded-lg border border-[color-mix(in_srgb,var(--warn)_30%,transparent)] bg-[color-mix(in_srgb,var(--warn)_8%,white)] p-3">
-              <Checkbox
-                id="tipsOk"
-                checked={tipsOk}
-                onCheckedChange={(v) => {
-                  const ok = v === true;
-                  setTipsOk(ok);
-                  if (ok) setTipsOpen(false);
-                }}
-                className="mt-0.5 border-[var(--warn)] data-checked:border-[var(--warn)] data-checked:bg-[var(--warn)]"
-                required
-              />
-              <Label
-                htmlFor="tipsOk"
-                className="text-sm font-medium leading-snug text-[var(--ink)]"
-              >
-                Confirmei que a foto segue essas condições.
-              </Label>
+              {faceStatus === "locating" ? (
+                <p className="af-dropzone__face-status">A localizar o rosto…</p>
+              ) : null}
+              {faceStatus === "miss" ? (
+                <p className="af-dropzone__face-status">
+                  Não localizamos o rosto — a leitura fica provisória até uma selfie frontal.
+                </p>
+              ) : null}
+              <div className="af-dropzone__swap">Trocar foto</div>
+            </>
+          ) : (
+            <div className="af-dropzone__placeholder">
+              <div className="af-dropzone__icon">◎</div>
+              <p className="af-dropzone__placeholder-title">Enviar foto</p>
+              <p className="af-dropzone__placeholder-hint">
+                Clique para escolher · JPG ou PNG · até 8 MB
+              </p>
             </div>
-          </PopoverContent>
-        </Popover>
-
-        <div>
-          <Label htmlFor="image" className="label mb-2">
-            Foto do rosto (luz natural, sem maquiagem pesada)
-          </Label>
-          <input
-            id="image"
-            name="image"
-            type="file"
-            accept="image/*"
-            required
-            className="input"
-          />
+          )}
         </div>
-      </div>
-
-      <div>
-        <Label htmlFor="intention" className="label mb-2">
-          O que você quer trabalhar?
-        </Label>
-        <p className="mb-2 text-sm text-[var(--muted)]">
-          A consultora usa isso para decidir o que suavizar, exaltar ou
-          manter — não é um checklist fixo.
-        </p>
-        <Textarea
-          id="intention"
-          name="intention"
-          className="min-h-24 bg-[#fffdf9]"
-          required
-          minLength={8}
-          maxLength={600}
-          value={intention}
-          onChange={(e) => setIntention(e.target.value)}
-          placeholder="Ex.: quero valorizar o olhar e suavizar olheiras sem parecer maquiada demais"
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="af-dropzone__input"
+          onChange={handleFile}
+          aria-label="Foto do rosto"
         />
-      </div>
 
-      <fieldset className="space-y-3">
-        <legend className="label">Áreas de foco (opcional)</legend>
-        <p className="text-sm text-[var(--muted)]">
-          Marque o que importa agora. Isso ajuda a consultora e filtra a
-          paleta — olheiras/manchas só entram se você pedir.
+        <div className="af-checklist">
+          <p className="af-checklist__label">Confirme a qualidade da foto</p>
+          {PHOTO_QUALITY_TIPS.map((tip) => (
+            <label key={tip.id} className="af-checklist__item">
+              <input
+                type="checkbox"
+                className="af-native-checkbox"
+                checked={Boolean(checklist[tip.id])}
+                onChange={(e) =>
+                  setChecklist((prev) => ({ ...prev, [tip.id]: e.target.checked }))
+                }
+              />
+              <span className="af-checklist__text">{tip.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="af-checklist">
+          <p className="af-checklist__label">O que pode enviesar a medição</p>
+          <label className="af-checklist__item">
+            <input
+              type="checkbox"
+              className="af-native-checkbox"
+              checked={makeupOnPhoto}
+              onChange={(e) => setMakeupOnPhoto(e.target.checked)}
+            />
+            <span className="af-checklist__text">Estou maquiada nesta foto</span>
+          </label>
+          <label className="af-checklist__item">
+            <input
+              type="checkbox"
+              className="af-native-checkbox"
+              checked={dyedHair}
+              onChange={(e) => setDyedHair(e.target.checked)}
+            />
+            <span className="af-checklist__text">
+              O cabelo está tingido (não é a cor da raiz)
+            </span>
+          </label>
+          <label className="af-checklist__item">
+            <input
+              type="checkbox"
+              className="af-native-checkbox"
+              checked={artificialLight}
+              onChange={(e) => setArtificialLight(e.target.checked)}
+            />
+            <span className="af-checklist__text">
+              A luz é artificial (lâmpada, não janela)
+            </span>
+          </label>
+        </div>
+      </AfSection>
+
+      {/* 02 — Intenção */}
+      <AfSection
+        number="02"
+        title="O que você quer trabalhar?"
+        subtitle="Em suas palavras"
+      >
+        <textarea
+          className="af-textarea"
+          value={intention}
+          onChange={(e) => setIntention(e.target.value.slice(0, INTENTION_MAX))}
+          minLength={INTENTION_MIN}
+          maxLength={INTENTION_MAX}
+          placeholder="Ex: Quero entender por que certas cores me deixam apagada e como usar mais cor no meu dia a dia sem parecer exagerada..."
+        />
+        <p className="af-textarea__counter">
+          {intention.length} / {INTENTION_MAX}
         </p>
-        <ul className="space-y-3">
+      </AfSection>
+
+      {/* 03 — Áreas de foco */}
+      <AfSection number="03" title="Áreas de foco" subtitle="Selecione uma ou mais">
+        <div className="af-chips">
           {ANALYSIS_GOAL_OPTIONS.map((opt) => {
-            const checked = goals.includes(opt.id);
-            const id = `goal-${opt.id}`;
+            const active = goals.includes(opt.id);
             return (
-              <li key={opt.id} className="flex items-start gap-3">
-                <Checkbox
-                  id={id}
-                  checked={checked}
-                  onCheckedChange={() => toggleGoal(opt.id)}
-                  className="mt-0.5"
-                />
-                <Label
-                  htmlFor={id}
-                  className="block cursor-pointer items-start font-normal leading-snug"
-                >
-                  <span className="font-medium text-[var(--ink)]">
-                    {opt.label}
-                  </span>
-                  <span className="mt-0.5 block text-sm font-normal text-[var(--muted)]">
-                    {opt.hint}
-                  </span>
-                </Label>
-              </li>
+              <button
+                key={opt.id}
+                type="button"
+                title={opt.hint}
+                onClick={() => toggleGoal(opt.id)}
+                className={`af-chip ${active ? "af-chip--active" : ""}`}
+                aria-pressed={active}
+              >
+                {opt.label}
+              </button>
             );
           })}
-        </ul>
-      </fieldset>
+        </div>
+      </AfSection>
 
-      <div>
-        <Label htmlFor="context" className="label mb-2">
-          Contexto da recomendação
-        </Label>
-        <p className="mb-2 text-sm text-[var(--muted)]">
-          Isso filtra sugestões de roupa para o dia a dia, trabalho ou noite.
-        </p>
-        <select id="context" name="context" className="input" defaultValue="casual">
-          <option value="casual">Casual</option>
-          <option value="trabalho">Trabalho</option>
-          <option value="noite">Noite</option>
-        </select>
+      {/* 04 — Contexto */}
+      <AfSection
+        number="04"
+        title="Contexto principal"
+        subtitle="Para qual ocasião analisar"
+      >
+        <div className="af-context-grid">
+          {CONTEXTS.map((ctx) => {
+            const active = context === ctx.id;
+            return (
+              <button
+                key={ctx.id}
+                type="button"
+                onClick={() => setContext(ctx.id)}
+                className={`af-context-card ${active ? "af-context-card--active" : ""}`}
+                aria-pressed={active}
+              >
+                <p className="af-context-card__label">{ctx.label}</p>
+                <p className="af-context-card__sub">{ctx.sub}</p>
+              </button>
+            );
+          })}
+        </div>
+      </AfSection>
+
+      {/* LGPD */}
+      <div className="af-consent">
+        <label className="af-consent__row">
+          <input
+            type="checkbox"
+            className="af-native-checkbox"
+            checked={lgpd}
+            onChange={(e) => setLgpd(e.target.checked)}
+          />
+          <div>
+            <p className="af-consent__title">
+              Consinto com o uso da minha foto para fins de análise de
+              colorimetria pessoal.
+            </p>
+            <p className="af-consent__hint">
+              Sua foto é usada exclusivamente para esta análise, com acesso
+              restrito à consultora responsável. Em conformidade com a LGPD
+              (Lei nº 13.709/2018). Você pode solicitar a exclusão a qualquer
+              momento.
+            </p>
+          </div>
+        </label>
       </div>
-      <div className="flex items-start gap-2">
-        <Checkbox
-          id="biometricConsent"
-          checked={biometricConsent}
-          onCheckedChange={(v) => setBiometricConsent(v === true)}
-          className="mt-0.5"
-          required
-        />
-        <Label
-          htmlFor="biometricConsent"
-          className="text-sm font-normal leading-snug text-[var(--muted)]"
+
+      {errorMessage && <p className="af-error-banner">{errorMessage}</p>}
+
+      <div className="af-submit">
+        <button
+          type="button"
+          className="af-submit__btn"
+          disabled={!canSubmit}
+          onClick={handleSubmit}
         >
-          Autorizo o uso da foto do meu rosto para colorimetria, simulação e
-          personalização do plano de traços/pele neste serviço. As imagens
-          ficam privadas (não são públicas).
-        </Label>
+          Enviar para análise
+        </button>
+        {!canSubmit && (
+          <p className="af-submit__hint">
+            Preencha todos os campos obrigatórios para continuar.
+          </p>
+        )}
       </div>
-      {error && <p className="text-sm text-red-700">{error}</p>}
-      <button type="submit" className="btn btn-primary" disabled={loading}>
-        {loading ? "Analisando…" : "Analisar foto"}
-      </button>
-    </form>
+    </div>
+  );
+}
+
+function AfSection({
+  number,
+  title,
+  subtitle,
+  children,
+}: {
+  number: string;
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="af-section">
+      <div className="af-section__head">
+        <span className="af-section__number">{number}</span>
+        <div>
+          <h2 className="af-section__title">{title}</h2>
+          <p className="af-section__subtitle">{subtitle}</p>
+        </div>
+      </div>
+      {children}
+    </section>
   );
 }

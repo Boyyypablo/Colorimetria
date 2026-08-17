@@ -6,7 +6,7 @@ import { shouldSeedDemoUsers } from "../src/lib/db/seed-policy";
 
 const prisma = new PrismaClient();
 
-const DEMO_PASSWORD = "colometria123";
+const DEMO_PASSWORD = "t1234@";
 
 async function seedDemoUsers() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
@@ -20,7 +20,7 @@ async function seedDemoUsers() {
       role: "CONSULTANT",
       lgpdConsentAt: new Date(),
     },
-    update: { role: "CONSULTANT" },
+    update: { role: "CONSULTANT", passwordHash },
   });
 
   await prisma.user.upsert({
@@ -32,7 +32,7 @@ async function seedDemoUsers() {
       role: "ADMIN",
       lgpdConsentAt: new Date(),
     },
-    update: { role: "ADMIN" },
+    update: { role: "ADMIN", passwordHash },
   });
 
   await prisma.user.upsert({
@@ -44,13 +44,13 @@ async function seedDemoUsers() {
       role: "USER",
       lgpdConsentAt: new Date(),
     },
-    update: { name: "Usuária Demo" },
+    update: { name: "Usuária Demo", passwordHash },
   });
 
   console.log("Usuários demo (somente este Postgres local):");
-  console.log("  consultora@colometria.app / colometria123");
-  console.log("  usuaria@colometria.app / colometria123");
-  console.log("  admin@colometria.app / colometria123");
+  console.log("  consultora@colometria.app / t1234@");
+  console.log("  usuaria@colometria.app / t1234@");
+  console.log("  admin@colometria.app / t1234@");
 }
 
 async function main() {

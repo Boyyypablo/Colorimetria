@@ -83,6 +83,12 @@ export type PhotoQuality = {
   warnings: string[];
   /** Dicas do checklist que falharam na análise automática. */
   failedTips: string[];
+  /** Autodeclaração no upload — enviesa Lab se verdadeira. */
+  intake?: {
+    makeupOnPhoto: boolean;
+    dyedHair: boolean;
+    artificialLight: boolean;
+  };
 };
 
 export type ClassificationResult = {

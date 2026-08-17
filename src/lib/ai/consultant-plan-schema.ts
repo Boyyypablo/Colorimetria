@@ -55,6 +55,9 @@ export type ConsultantPlanMeta = {
   usedVision?: boolean;
   error?: string;
   generatedAt?: string;
+  provider?: "none" | "ollama" | "gemini";
+  cardIds?: string[];
+  rubricVersion?: string;
 };
 
 /** Target canônico de feedback para uma mudança da IA. */

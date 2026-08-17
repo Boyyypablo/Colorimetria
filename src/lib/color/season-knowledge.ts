@@ -1,3 +1,4 @@
+import { SEASON_PACKS, type SeasonPack } from "./season-packs";
 import type { SeasonDefinition, Temperature } from "./types";
 
 export type ContrastBand = "low" | "medium" | "high";
@@ -54,9 +55,15 @@ export type SeasonCoaching = {
 };
 
 const OFF_PALETTE_GENERIC = [
-  "Use peças da sua cartela perto do rosto (blusa, lenço, brinco).",
-  "Cores fora da paleta funcionam melhor longe do rosto (calça, saia, sapato).",
-  "Uma terceira peça da cartela (blazer, casaco, kimono) harmoniza looks mistos.",
+  "A cartela não anula o guarda-roupa: o que está fora dela só pede mais distância do rosto.",
+  "Calça, saia, sapato e bolsa são os melhores lugares para uma cor que você gosta e não está na paleta.",
+  "Se a cor de fora aparecer na gola ou no decote, coloque um item da cartela no meio (lenço, brinco, blazer) — isso 'fecha' o look.",
+  "A combinação mais cansativa perto da pele é temperatura oposta + cor muito viva: deixe essa peça na barra, não na blusa.",
+  "Cores da cartela irmã podem entrar pontualmente; o que encosta no rosto continua sendo da paleta medida.",
+];
+
+const PALETTE_USAGE_STYLE = [
+  "Perto do rosto, priorize peças da sua cartela (blusa, lenço, brinco).",
   "Você não precisa usar todas as cores da paleta — escolha as que combinam com seu estilo.",
 ];
 
@@ -91,83 +98,6 @@ function hairNotesForTemperature(temperature: Temperature): string[] {
     "Misture com base na altura de tom desejada; resultado = pigmento + fundo de clareamento (+ residual, se houver).",
   ];
 }
-
-type SeasonPack = {
-  styleTips: string[];
-  makeupTips: string[];
-  hairTips: string[];
-  avoidNotes: string[];
-  sisterNote: (sisterName: string) => string;
-};
-
-const PACKS: Partial<Record<string, SeasonPack>> = {
-  bright_winter: {
-    styleTips: [
-      "Característica principal: brilho — branco óptico e preto bem brilhoso (não branco amarelado apagado).",
-      "Tecidos com reflexo (cetim e similares) valorizam a cartela.",
-      "Estampas: vibrantes, frias e escuras; evite fundo suave e quente.",
-      "Jeans: escolha azuis da sua paleta, não um azul genérico.",
-      "Metais: pode misturar ouro, ouro branco, prata e platina — priorize acabamento polido/brilhante.",
-      "Dourado em joias funciona bem; em roupa perto do rosto o dourado quente destaca demais.",
-    ],
-    makeupTips: [
-      "Aposte em brilho (glossy) — faz parte da sua característica brilhante.",
-      "Contorno em neutros frios; blush rosado ou arroxeado.",
-      "Sombras neutras: marrons frios (evite cobre); coloridos e vibrantes também funcionam.",
-      "Batons vivos da cartela + gloss reforçam o contraste natural.",
-      "Base: marrons frios/rosados; pode oscilar entre oliva, neutra ou levemente rosada.",
-    ],
-    hairTips: [
-      "Marrons neutros frios; ruivos aconselhados em marsala e frios.",
-      "Morena iluminada/loira: tons neutros (bege/creme), preservar a raiz; mechas marcadas com brilho — não excessivamente esfumadas.",
-      "Harmonia: ±2 tons da cor natural; iluminada até cerca de −4 tons.",
-      "Fantasia: azul-marinho, rosa frio, marsala, roxo, verde neon — sempre com brilho, inspirados na paleta.",
-    ],
-    avoidNotes: [
-      "Evite tons extremamente quentes e claros demais perto do rosto.",
-      "Outono Suave costuma desvalorizar: muita suavidade + calor.",
-    ],
-    sisterNote: (s) =>
-      `Cartela irmã: ${s} — mesmo brilho; ela é clara e quente, você é escura e fria. Pode “roubar” cores escuras/saturadas dela, sem substituir a sua paleta.`,
-  },
-  bright_spring: {
-    styleTips: [
-      "Característica principal: brilho quente — cores vivas, claras e saturadas.",
-      "Branco limpo e pigmentos dourados/coral funcionam bem.",
-      "Evite cinzas frios opacos e pretos sem vida perto do rosto.",
-    ],
-    makeupTips: [
-      "Batons coral e vermelho quente; sombras douradas e verdes vivos.",
-      "Base com viés dourado/claro alinhado ao valor alto.",
-    ],
-    hairTips: [
-      "Loiros e mel quentes; cobre e dourado com intenção (brilho).",
-      "Evite cinza excessivo que apague a vivacidade.",
-    ],
-    avoidNotes: [
-      "Evite paletas frias profundas e suaves demais (ex.: inverno opaco ou outono suave).",
-    ],
-    sisterNote: (s) =>
-      `Cartela irmã: ${s} — mesmo brilho; ela é fria e escura. Cores intensas frias dela podem funcionar pontualmente.`,
-  },
-  soft_autumn: {
-    styleTips: [
-      "Suavidade + calor: terrosos, camel e oliva sem brilho metálico extremo.",
-      "Prefira acabamentos mate e estampas suaves.",
-    ],
-    makeupTips: [
-      "Nudes terrosos e terracota suave; evite vermelho óptico gelado.",
-    ],
-    hairTips: [
-      "Castanhos quentes suaves; cobre discreto. Evite platinado frio extremo.",
-    ],
-    avoidNotes: [
-      "Contraste alto com preto/branco óptico e neons frios costuma endurecer o traço.",
-    ],
-    sisterNote: (s) =>
-      `Cartela irmã: ${s} — mesma suavidade, temperatura fria.`,
-  },
-};
 
 function defaultPack(season: SeasonDefinition): SeasonPack {
   const warm = season.temperature === "warm";
@@ -216,7 +146,7 @@ export function buildSeasonCoaching(
     opts?.contrastScore != null
       ? contrastBandFromScore(opts.contrastScore)
       : "medium";
-  const pack = PACKS[season.id] ?? defaultPack(season);
+  const pack = SEASON_PACKS[season.id] ?? defaultPack(season);
   const sisterId = SISTER_SEASONS[season.id] ?? null;
   const sisterName = sisterId
     ? opts?.getSeasonName?.(sisterId) ?? sisterId
@@ -226,7 +156,7 @@ export function buildSeasonCoaching(
     sisterSeasonId: sisterId,
     sisterNamePt: sisterName,
     sisterNote: sisterId && sisterName ? pack.sisterNote(sisterName) : null,
-    styleTips: [...pack.styleTips, glassesTip(band, season.temperature)],
+    styleTips: [...pack.styleTips, ...PALETTE_USAGE_STYLE, glassesTip(band, season.temperature)],
     makeupTips: pack.makeupTips,
     hairTips: pack.hairTips,
     avoidNotes: pack.avoidNotes,

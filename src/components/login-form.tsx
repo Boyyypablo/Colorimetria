@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { LANDING_IMAGES, LANDING_IMAGE_QUALITY } from "@/lib/landing-images";
+import { GlowingLogo } from "@/components/GlowingLogo";
 
 export function LoginForm({
   className,
@@ -52,11 +53,12 @@ export function LoginForm({
           <form className="p-6 md:p-8" onSubmit={onSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
-                <Link
-                  href="/"
-                  className="font-brand text-3xl text-[var(--ink)]"
-                >
-                  Colorimetria
+                <Link href="/" className="mb-1">
+                  <GlowingLogo
+                    size="md"
+                    bg="light"
+                    className="glowing-logo--center"
+                  />
                 </Link>
                 <h1 className="font-display text-2xl font-medium">
                   Bem-vinda de volta
@@ -83,7 +85,7 @@ export function LoginForm({
                   name="password"
                   type="password"
                   required
-                  minLength={8}
+                  minLength={6}
                   autoComplete="current-password"
                 />
               </Field>

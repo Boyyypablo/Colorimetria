@@ -42,7 +42,7 @@ Selfie → rosto localizado → amostra só de pele útil → estação com conf
 
 1. **Validação visual** — charter QA: upload com selfie real vs foto de produto.
 2. **Opcional:** salvar `faceCropPath` (jpeg privado) para debug/consultora — ligável por `SAVE_FACE_CROP=true`.
-3. **BlazeFace adapter real** (opt-in) quando quiser sair do heuristic; manter fallback.
+3. **BlazeFace** — padrão no código (`resolveFaceDetectorId`); heuristic só fallback ou env explícito.
 4. Commit da Fase 1 quando você autorizar.
 
 ### Riscos Fase 1

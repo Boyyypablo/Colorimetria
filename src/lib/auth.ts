@@ -31,7 +31,7 @@ declare module "@auth/core/jwt" {
 
 const credentialsSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(6).max(128),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({

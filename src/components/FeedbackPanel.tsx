@@ -46,17 +46,18 @@ function VoteButtons({
   onVote: (target: string, kind: FeedbackVote["kind"]) => void;
 }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 border-b border-[rgba(28,25,23,0.08)] py-2 last:border-0">
-      <span className="flex items-center gap-2 text-base">
-        {hex ? <span className="swatch" style={{ background: hex }} /> : null}
-        {label}
+    <li className="ar-fb__row">
+      <span className="ar-fb__item">
+        {hex ? <span className="ar-fb__swatch" style={{ background: hex }} /> : null}
+        <span className="ar-fb__item-copy">
+          <span className="ar-fb__item-label">{label}</span>
+          {hex ? <span className="ar-fb__item-hex">{hex}</span> : null}
+        </span>
       </span>
-      <span className="flex gap-1">
+      <span className="ar-fb__votes">
         <button
           type="button"
-          className={`btn btn-ghost px-3 py-1.5 text-sm ${
-            current === "HELPED" ? "ring-1 ring-[var(--ok)]" : ""
-          }`}
+          className={`ar-fb__btn ar-fb__btn--yes${current === "HELPED" ? " ar-fb__btn--on" : ""}`}
           disabled={busy}
           aria-pressed={current === "HELPED"}
           onClick={() => onVote(target, "HELPED")}
@@ -65,9 +66,7 @@ function VoteButtons({
         </button>
         <button
           type="button"
-          className={`btn btn-ghost px-3 py-1.5 text-sm ${
-            current === "DID_NOT_HELP" ? "ring-1 ring-[var(--warn)]" : ""
-          }`}
+          className={`ar-fb__btn ar-fb__btn--no${current === "DID_NOT_HELP" ? " ar-fb__btn--on" : ""}`}
           disabled={busy}
           aria-pressed={current === "DID_NOT_HELP"}
           onClick={() => onVote(target, "DID_NOT_HELP")}
@@ -128,47 +127,43 @@ export function FeedbackPanel({
   ];
 
   return (
-    <section className="space-y-4" aria-labelledby="feedback-heading">
-      <div>
-        <h2 id="feedback-heading" className="font-display text-3xl">
-          Isso ajudou você?
-        </h2>
-        <p className="mt-2 max-w-2xl text-lg text-[var(--muted)] leading-relaxed">
-          Seu feedback calibra recomendações futuras — o que combina com você, não só a estação.
-        </p>
-      </div>
+    <div className="ar-fb">
+      <p className="ar-fb__lead">
+        Diga o que combinou com você. O voto calibra recomendações futuras — não só a estação.
+      </p>
 
-      <label className="block space-y-2 text-base">
-        <span className="text-[var(--muted)]">
-          Comentário opcional (enviado com o próximo voto)
-        </span>
+      <label className="ar-fb__note">
+        <span className="ar-fb__note-label">Comentário opcional</span>
         <input
-          className="input text-base"
+          className="ar-fb__note-input"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           maxLength={1000}
           placeholder="Ex.: o coral ficou ótimo no dia a dia"
         />
-        <span className="text-sm text-[var(--muted)]">
-          Será enviado junto com o próximo “Ajudou” ou “Não ajudou”.
+        <span className="ar-fb__note-hint">
+          Enviado junto com o próximo “Ajudou” ou “Não ajudou”.
         </span>
       </label>
 
-      <ul className="space-y-0">
-        <VoteButtons
-          target="season"
-          label={`Estação: ${seasonName}`}
-          current={votes.season}
-          busy={pending || busyTarget === "season"}
-          onVote={onVote}
-        />
-      </ul>
+      <div className="ar-fb__card ar-fb__card--season">
+        <p className="ar-fb__group-title">Estação</p>
+        <ul className="ar-fb__list">
+          <VoteButtons
+            target="season"
+            label={seasonName}
+            current={votes.season}
+            busy={pending || busyTarget === "season"}
+            onVote={onVote}
+          />
+        </ul>
+      </div>
 
       {groups.map((group) =>
         group.items.length === 0 ? null : (
-          <div key={group.title} className="space-y-1">
-            <h3 className="text-lg font-semibold">{group.title}</h3>
-            <ul>
+          <div key={group.title} className="ar-fb__card">
+            <p className="ar-fb__group-title">{group.title}</p>
+            <ul className="ar-fb__list">
               {group.items.map((item) => {
                 const target = `${group.prefix}:${item.hex}`;
                 return (
@@ -189,9 +184,9 @@ export function FeedbackPanel({
       )}
 
       {aiChanges.length > 0 ? (
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold">Plano da consultora</h3>
-          <ul>
+        <div className="ar-fb__card">
+          <p className="ar-fb__group-title">Plano da consultora</p>
+          <ul className="ar-fb__list">
             {aiChanges.map((item) => (
               <VoteButtons
                 key={item.target}
@@ -208,9 +203,9 @@ export function FeedbackPanel({
       ) : null}
 
       {corrections.length > 0 ? (
-        <div className="space-y-1">
-          <h3 className="text-lg font-semibold">Cuidados com a pele</h3>
-          <ul>
+        <div className="ar-fb__card">
+          <p className="ar-fb__group-title">Cuidados com a pele</p>
+          <ul className="ar-fb__list">
             {corrections.map((item) => (
               <VoteButtons
                 key={item.target}
@@ -226,7 +221,7 @@ export function FeedbackPanel({
         </div>
       ) : null}
 
-      {error ? <p className="text-sm text-[var(--warn)]">{error}</p> : null}
-    </section>
+      {error ? <p className="ar-fb__error">{error}</p> : null}
+    </div>
   );
 }

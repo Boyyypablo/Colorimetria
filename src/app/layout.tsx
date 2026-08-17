@@ -1,19 +1,13 @@
 import type { Metadata } from "next";
-import { Bodoni_Moda, Fraunces, DM_Sans } from "next/font/google";
+import { Fraunces, DM_Sans } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import "./globals.css";
-
-/** Wordmark luxury (estilo Safira / Didot) — só no nome da marca. */
-const brand = Bodoni_Moda({
-  subsets: ["latin"],
-  variable: "--font-brand",
-  weight: ["400", "500", "600", "700"],
-});
 
 const display = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
   style: ["normal", "italic"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const sans = DM_Sans({
@@ -23,9 +17,9 @@ const sans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Colorimetria — a cor certa revela quem você já é",
+  title: "Glowing — Colorimetria & Estética",
   description:
-    "Consultoria em colorimetria e imagem: descubra sua cartela, recomendações e simulação visual.",
+    "Consultoria em colorimetria e imagem: descubra sua cartela, recomendações e aplicação prática.",
 };
 
 export default function RootLayout({
@@ -36,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${brand.variable} ${display.variable} ${sans.variable} antialiased`}
+        className={`${display.variable} ${sans.variable} antialiased`}
         suppressHydrationWarning
       >
         <Providers>{children}</Providers>

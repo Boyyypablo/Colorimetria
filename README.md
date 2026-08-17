@@ -1,6 +1,6 @@
-# Colometria
+# Glowing
 
-Produto web de **colorimetria pessoal** (imagens primeiro): análise sazonal CIELAB → 12 estações, recomendações e simulação visual, com fluxo híbrido self-service + consultora.
+Produto web de **colorimetria pessoal** (*Colorimetria & Estética*): análise sazonal CIELAB → 12 estações, recomendações e looks, com fluxo híbrido self-service + consultora.
 
 ## Stack
 
@@ -35,9 +35,9 @@ Só existem no Postgres de **localhost**. O seed **não** cria admin/consultora 
 
 | Email | Senha | Papel |
 |-------|-------|-------|
-| `usuaria@colometria.app` | `colometria123` | Usuária |
-| `consultora@colometria.app` | `colometria123` | Consultora |
-| `admin@colometria.app` | `colometria123` | Admin |
+| `usuaria@colometria.app` | `t1234@` | Usuária |
+| `consultora@colometria.app` | `t1234@` | Consultora |
+| `admin@colometria.app` | `t1234@` | Admin |
 
 ## Variáveis
 

@@ -3,7 +3,7 @@ import {
   consultantChangeTarget,
   consultantPlanSchema,
 } from "./consultant-plan-schema";
-import { parseConsultantPlan, shouldUseVision } from "./consultant";
+import { parseConsultantPlan, shouldUseVision, generateConsultantPlan } from "./consultant";
 
 describe("consultantPlanSchema", () => {
   it("aceita plano válido", () => {
@@ -65,5 +65,39 @@ describe("shouldUseVision", () => {
         goals: ["harmonia", "roupas"],
       }),
     ).toBe(false);
+  });
+});
+
+describe("generateConsultantPlan", () => {
+  it("pula intenção curta sem chamar modelo", async () => {
+    const result = await generateConsultantPlan({
+      intention: "oi",
+      goals: ["harmonia"],
+      context: "casual",
+      seasonId: "bright_winter",
+      seasonName: "Inverno Brilhante",
+      undertoneLabel: "frio",
+      confidence: 0.7,
+      features: {
+        featureSchemaVersion: 1,
+        lab: { L: 50, a: 5, b: -4 },
+        labUndertone: { L: 50, a: 5, b: -4 },
+        labHair: null,
+        labEyes: null,
+        temperatureScore: -8,
+        valueScore: 50,
+        chromaScore: 20,
+        contrastScore: 30,
+        contrastSource: "skin_l",
+        skinPixelRatio: 0.1,
+        sampleCount: 100,
+        detectorProvider: "heuristic",
+        faceBox: null,
+        roiLabs: [],
+      },
+      photoQuality: { faceDetected: true, qualityBand: "boa", warnings: [] },
+    });
+    expect(result.plan).toBeNull();
+    expect(result.meta.status).toBe("skipped");
   });
 });

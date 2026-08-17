@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { roisFromFaceBox, analysisCropFromFace } from "@/lib/vision/face/rois";
 import { HeuristicFaceDetector } from "@/lib/vision/face/providers/heuristic";
-import { createFaceDetector } from "@/lib/vision/face";
+import { createFaceDetector, resolveFaceDetectorId } from "@/lib/vision/face";
 import sharp from "sharp";
 
 describe("roisFromFaceBox", () => {
@@ -85,5 +85,21 @@ describe("createFaceDetector", () => {
   it("resolve heuristic por id", async () => {
     const det = await createFaceDetector("heuristic");
     expect(det.id).toBe("heuristic");
+  });
+});
+
+describe("resolveFaceDetectorId", () => {
+  it("vazio vira blazeface", () => {
+    expect(resolveFaceDetectorId("")).toBe("blazeface");
+    expect(resolveFaceDetectorId("   ")).toBe("blazeface");
+    expect(resolveFaceDetectorId("BLAZEFACE")).toBe("blazeface");
+  });
+
+  it("env inválido cai na heuristic", () => {
+    expect(resolveFaceDetectorId("lixo")).toBe("heuristic");
+  });
+
+  it("heuristic explícito permanece", () => {
+    expect(resolveFaceDetectorId("heuristic")).toBe("heuristic");
   });
 });
