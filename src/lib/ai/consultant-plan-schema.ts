@@ -55,7 +55,7 @@ export type ConsultantPlanMeta = {
   usedVision?: boolean;
   error?: string;
   generatedAt?: string;
-  provider?: "none" | "ollama" | "gemini";
+  provider?: "none" | "ollama" | "gemini" | "cards";
   cardIds?: string[];
   rubricVersion?: string;
 };

@@ -111,3 +111,13 @@ FACE_DETECTOR=blazeface   # heuristic só se quiser forçar o paraquedas
 COLOR_PREDICTOR=rules     # trocar para tabular-v1 após treino
 ```
 
+### Consultora online (Vercel)
+
+Ollama só existe no PC. No ar, o **plano da consultora é montado pelos cards e pela rubrica** — sem token, sem Gemini. A estação continua vindo das regras CIELAB.
+
+No painel da Vercel (opcional; o código já cai nisso se `CONSULTANT_AI=ollama`):
+
+- `CONSULTANT_AI` = `cards`
+
+O resultado mostra o mesmo bloco “Plano personalizado”, alinhado à intenção e à cartela medida. LLM local (Qwen) permanece só em desenvolvimento.
+

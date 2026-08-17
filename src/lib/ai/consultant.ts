@@ -10,9 +10,11 @@ import {
   formatRubricForPrompt,
 } from "@/lib/ai/consultant-context";
 import {
+  consultantAllowsVision,
   resolveConsultantAiProvider,
   type ConsultantAiProvider,
 } from "@/lib/ai/consultant-provider";
+import { buildConsultantPlanFromCards } from "@/lib/ai/consultant-cards";
 import { ollamaChatJson } from "@/lib/ai/ollama";
 import {
   consultantPlanSchema,
@@ -214,18 +216,56 @@ export async function generateConsultantPlan(
     };
   }
 
-  const usedVision =
-    provider === "gemini" &&
-    Boolean(input.imageBuffer?.length) &&
-    shouldUseVision({ intention, goals: input.goals });
-
   const { cards, opinion } = await loadContextCards(input);
-  const prompt = userPrompt(input, cards, opinion, usedVision);
   const knowledgeMeta = {
     cardIds: cards.map((c) => c.id),
     rubricVersion: opinion.rubricVersion,
     provider,
   };
+
+  if (provider === "cards") {
+    try {
+      const plan = buildConsultantPlanFromCards({
+        intention,
+        goals: input.goals,
+        seasonId: input.seasonId,
+        seasonName: input.seasonName,
+        undertoneLabel: input.undertoneLabel,
+        cards,
+        opinion,
+      });
+      return {
+        plan,
+        meta: {
+          status: "ok",
+          model: "cards",
+          usedVision: false,
+          generatedAt: new Date().toISOString(),
+          ...knowledgeMeta,
+        },
+      };
+    } catch (err) {
+      return {
+        plan: null,
+        meta: {
+          status: "error",
+          model: "cards",
+          usedVision: false,
+          error: err instanceof Error ? err.message : "Falha no plano por cards.",
+          generatedAt: new Date().toISOString(),
+          ...knowledgeMeta,
+        },
+      };
+    }
+  }
+
+  const usedVision =
+    provider === "gemini" &&
+    consultantAllowsVision() &&
+    Boolean(input.imageBuffer?.length) &&
+    shouldUseVision({ intention, goals: input.goals });
+
+  const prompt = userPrompt(input, cards, opinion, usedVision);
 
   try {
     if (provider === "ollama") {

@@ -48,7 +48,7 @@ Depois da Fase C (consultora local). Ordem sugerida: impacto × esforço. Não m
 
 | # | Melhoria | Por quê | Como |
 |---|----------|---------|------|
-| 5.1 | `CONSULTANT_AI=ollama` só em local; prod `none` ou gemini se houver crédito | Vercel não tem Ollama | Env por ambiente |
+| 5.1 | Consultora no Vercel sem token pago | Ollama não roda na nuvem | **Feito** — `CONSULTANT_AI=cards` (rubrica + cards); gemini só se optar depois |
 | 5.2 | Não commitar `aprendizado/material` nem transcrições | Copyright + peso | Já no `.gitignore` |
 | 5.3 | Rotacionar tokens que já passaram por `.env` se o arquivo vazou | Segurança | HF / Gemini no painel do host |
 

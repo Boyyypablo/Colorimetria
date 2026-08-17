@@ -6,13 +6,21 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 120_000;
 
+function resolveTimeout(timeoutMs?: number): number {
+  if (timeoutMs && timeoutMs > 0) return timeoutMs;
+  const fromEnv = Number(process.env.OLLAMA_TIMEOUT_MS);
+  if (Number.isFinite(fromEnv) && fromEnv > 0) return fromEnv;
+  return DEFAULT_TIMEOUT_MS;
+}
+
 async function ollamaFetch(
   path: string,
   body: unknown,
-  timeoutMs = DEFAULT_TIMEOUT_MS,
+  timeoutMs?: number,
 ): Promise<Response> {
+  const ms = resolveTimeout(timeoutMs);
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
     return await fetch(`${ollamaBaseUrl()}${path}`, {
       method: "POST",
@@ -29,20 +37,25 @@ export async function ollamaChatJson(opts: {
   system: string;
   user: string;
   schemaHint: string;
+  timeoutMs?: number;
 }): Promise<unknown> {
-  const res = await ollamaFetch("/api/chat", {
-    model: ollamaChatModel(),
-    stream: false,
-    format: "json",
-    options: { temperature: 0.3 },
-    messages: [
-      { role: "system", content: opts.system },
-      {
-        role: "user",
-        content: `${opts.user}\n\nResponda APENAS um JSON válido com este formato:\n${opts.schemaHint}`,
-      },
-    ],
-  });
+  const res = await ollamaFetch(
+    "/api/chat",
+    {
+      model: ollamaChatModel(),
+      stream: false,
+      format: "json",
+      options: { temperature: 0.3 },
+      messages: [
+        { role: "system", content: opts.system },
+        {
+          role: "user",
+          content: `${opts.user}\n\nResponda APENAS um JSON válido com este formato:\n${opts.schemaHint}`,
+        },
+      ],
+    },
+    opts.timeoutMs,
+  );
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
     throw new Error(`Ollama chat ${res.status}: ${errText.slice(0, 200)}`);
