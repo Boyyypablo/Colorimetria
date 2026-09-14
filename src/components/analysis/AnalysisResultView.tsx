@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
-import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
-import { GarmentPreview } from "@/components/analysis/GarmentPreview";
+// DAY-1: Removed consultant imports (single SKU: Avaliação only)
+// import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
+// import { GarmentPreview } from "@/components/analysis/GarmentPreview";
+import type { GarmentKind } from "../../../data/wardrobe/garments";
 import { ConfidenceBadge as ConfidenceBadgeFigma } from "@/components/analyze/ConfidenceBadge";
 import { SisterSeasonsCard as SisterSeasonsCardFigma } from "@/components/analyze/SisterSeasonsCard";
-import type { GarmentKind } from "../../../data/wardrobe/garments";
 
 export type RecItem = {
   hex: string;
@@ -331,11 +332,12 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
           )}
 
-          {props.canRequestReview && (
+          {/* DAY-1: Removed consultant request CTA (single SKU: Avaliação only) */}
+          {/* {props.canRequestReview && (
             <div style={{ marginTop: "1.5rem" }}>
               <RequestReviewButton analysisId={props.analysisId} />
             </div>
-          )}
+          )} */}
         </div>
       </section>
 
@@ -384,7 +386,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </div>
         )}
 
-        {props.plan && (
+        {/* DAY-1: Removed consultant plan section (single SKU: Avaliação only) */}
+        {/* {props.plan && (
           <section id="plano" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Plano personalizado</h2>
@@ -465,7 +468,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               </div>
             )}
           </section>
-        )}
+        )} */}
 
         {props.useColors.length > 0 && (
           <section id="paleta" className="ar-section">
@@ -540,7 +543,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </section>
         )}
 
-        {props.lookGroups.length > 0 && (
+        {/* DAY-1: Removed looks/wardrobe section (single SKU: Avaliação only) */}
+        {/* {props.lookGroups.length > 0 && (
           <section id="looks" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Looks sugeridos</h2>
@@ -611,7 +615,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               })}
             </div>
           </section>
-        )}
+        )} */}
 
         {props.skinCorrection && (
           <section id="cuidados" className="ar-section">
@@ -705,13 +709,14 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
           )}
 
-          {props.staffReview && props.statusKey !== "APPROVED" && (
+          {/* DAY-1: Removed staff consultant review form (single SKU: Avaliação only) */}
+          {/* {props.staffReview && props.statusKey !== "APPROVED" && (
             <ConsultantReviewForm
               analysisId={props.analysisId}
               seasons={props.staffReview.seasons}
               currentSeasonId={props.staffReview.currentSeasonId}
             />
-          )}
+          )} */}
         </div>
       )}
     </>

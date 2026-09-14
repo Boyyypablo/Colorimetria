@@ -293,10 +293,12 @@ export default async function AnalysisPage({ params }: Params) {
 
   const navItems = [
     evaluation ? { href: "#leitura", label: "Leitura" } : null,
-    consultantPlan ? { href: "#plano", label: "Plano" } : null,
+    // DAY-1: Removed consultant plan nav (single SKU: Avaliação only)
+    // consultantPlan ? { href: "#plano", label: "Plano" } : null,
     useColors.length > 0 ? { href: "#paleta", label: "Paleta" } : null,
     coachingBlocks.length > 0 ? { href: "#orientacoes", label: "Orientações" } : null,
-    lookGroups.length > 0 ? { href: "#looks", label: "Looks" } : null,
+    // DAY-1: Removed looks nav (single SKU: Avaliação only)
+    // lookGroups.length > 0 ? { href: "#looks", label: "Looks" } : null,
     skinCorrection ? { href: "#cuidados", label: "Cuidados" } : null,
     feedbackAvailable ? { href: "#feedback", label: "Feedback" } : null,
     simulationAvailable ? { href: "#simulacao", label: "Simulação" } : null,
