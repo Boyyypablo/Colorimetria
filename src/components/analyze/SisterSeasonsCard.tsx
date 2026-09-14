@@ -62,7 +62,7 @@ export function SisterSeasonsCard({
           className="sister-card__btn sister-card__btn--primary"
           onClick={() => setExpanded(true)}
         >
-          Ver Estações possíveis
+          Ver estações possíveis
         </button>
       ) : (
         <div className="sister-card__list">
