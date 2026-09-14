@@ -1,0 +1,10 @@
+{
+  "description": "Create personalized color palettes and aesthetic logos for women's beauty and personal colorimetry projects, enhancing brand identity and visual appeal.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
