@@ -253,7 +253,6 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             <SisterSeasonsCardFigma
               sisters={props.sisterSeasons || []}
               onRetake={() => window.location.href = "/analyze"}
-              showViewAnyway={false}
             />
           )}
           {props.evaluation && (

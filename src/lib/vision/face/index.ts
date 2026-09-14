@@ -60,7 +60,7 @@ export async function detectFaceWithFallback(
     const fallback = await heuristic.detect(buffer, width, height);
     
     // P0.2: Se heuristic também não encontrou rosto confiável, rejeitar foto
-    if (fallback.usedFallback && fallback.primary.score < 0.12) {
+    if (fallback.usedFallback && fallback.primary && fallback.primary.score < 0.12) {
       throw new Error(
         "Não conseguimos localizar seu rosto na foto. Tire uma selfie frontal com seu rosto centralizado, iluminação natural e tente novamente."
       );
