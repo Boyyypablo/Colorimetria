@@ -199,7 +199,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               />
             </div>
             <div className="ar-hero__intro">
-              <p className="ar-hero__eyebrow">Sua estação de cor</p>
+              <p className="ar-hero__eyebrow">Sua estação</p>
               <h1 className="ar-hero__season">
                 {props.seasonName || "Em processamento"}
               </h1>

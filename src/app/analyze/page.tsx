@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { StudioHeader } from "@/components/studio/StudioHeader";
-import { AnalyzeForm } from "@/components/AnalyzeForm";
+import { AnalyzeFormV2 as AnalyzeForm } from "@/components/AnalyzeFormV2";
 import { auth } from "@/lib/auth";
 
 export default async function AnalyzePage() {
