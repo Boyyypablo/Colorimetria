@@ -12,6 +12,7 @@ import { decideAnalysisStatus, presentEvaluation } from "@/lib/knowledge/explain
 import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { calculateSisterSeasons, shouldShowSisterSeasons } from "@/lib/color/sister-seasons";
+import { mapPhotoQualityToRejectReasons } from "@/lib/color/reject-reasons";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -219,7 +220,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ analysis });
   } catch (err) {
-    // P0.2: Se erro for de detecção de rosto, retornar 400 (bad request) sem criar análise NEEDS_REVIEW
+    // Figma: Se erro for de detecção de rosto, retornar 400 com reject reasons
     const errorMsg = err instanceof Error ? err.message : "Não foi possível concluir a análise.";
     const isFaceDetectionError = errorMsg.includes("localizar seu rosto") || errorMsg.includes("rosto na foto");
     
@@ -230,6 +231,7 @@ export async function POST(request: Request) {
         {
           error: errorMsg,
           code: "FACE_NOT_DETECTED",
+          rejectReasons: ["face"], // Figma: reject reasons enum
         },
         { status: 400 },
       );

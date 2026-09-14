@@ -5,6 +5,8 @@ import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
 import { GarmentPreview } from "@/components/analysis/GarmentPreview";
+import { ConfidenceBadge as ConfidenceBadgeFigma } from "@/components/analyze/ConfidenceBadge";
+import { SisterSeasonsCard as SisterSeasonsCardFigma } from "@/components/analyze/SisterSeasonsCard";
 import type { GarmentKind } from "../../../data/wardrobe/garments";
 
 export type RecItem = {
@@ -220,32 +222,20 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               )}
               {props.confidencePercent != null && (
                 <>
-                  <span className="ar-hero__meta-note">
-                    Certeza da medição: {props.confidencePercent}%
-                    {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
-                    {props.confidenceNote ? ` — ${props.confidenceNote}` : ""}
-                  </span>
-                  {/* P0.3: Breakdown de confiança por eixo */}
+                  {/* Figma: Overall confidence badge */}
+                  <div className="ar-hero__confidence">
+                    <ConfidenceBadgeFigma percent={props.confidencePercent} />
+                  </div>
+                  
+                  {/* Figma: 4 axes — hide row if missing in API */}
                   {props.confidenceBreakdown && (
-                    <div className="ar-confidence-breakdown">
-                      <p className="ar-confidence-breakdown__title">Confiança por eixo:</p>
-                      <div className="ar-confidence-breakdown__bars">
-                        <ConfidenceBar
-                          label="Temperatura"
-                          value={props.confidenceBreakdown.temperature}
-                        />
-                        <ConfidenceBar
-                          label="Valor"
-                          value={props.confidenceBreakdown.value}
-                        />
-                        <ConfidenceBar
-                          label="Croma"
-                          value={props.confidenceBreakdown.chroma}
-                        />
-                        <ConfidenceBar
-                          label="Contraste"
-                          value={props.confidenceBreakdown.contrast}
-                        />
+                    <div className="ar-confidence-axes">
+                      <p className="ar-confidence-axes__title">Confiança por eixo</p>
+                      <div className="ar-confidence-axes__list">
+                        <AxisBar label="Temperatura" value={props.confidenceBreakdown.temperature} />
+                        <AxisBar label="Valor" value={props.confidenceBreakdown.value} />
+                        <AxisBar label="Croma" value={props.confidenceBreakdown.chroma} />
+                        <AxisBar label="Contraste" value={props.confidenceBreakdown.contrast} />
                       </div>
                     </div>
                   )}
@@ -258,24 +248,13 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           {props.undertoneHint && <p className="ar-hero__desc">{props.undertoneHint}</p>}
           {props.sisterNote && <p className="ar-hero__desc">{props.sisterNote}</p>}
 
-          {/* P0.5: Estações irmãs quando confiança baixa */}
-          {props.sisterSeasons && props.sisterSeasons.length > 0 && (
-            <div className="ar-sister-seasons">
-              <p className="ar-sister-seasons__label">
-                💡 Estações próximas — a medição está no limite entre estas cartelas:
-              </p>
-              <div className="ar-sister-seasons__list">
-                {props.sisterSeasons.map((sister) => (
-                  <span key={sister.id} className="ar-sister-seasons__item">
-                    {sister.namePt}
-                  </span>
-                ))}
-              </div>
-              <p className="ar-sister-seasons__hint">
-                Se você se identifica mais com uma destas, explore suas paletas também. 
-                Em caso de dúvida, uma consultora pode revisar.
-              </p>
-            </div>
+          {/* Figma: Confidence <65% → Sister seasons card */}
+          {props.confidencePercent != null && props.confidencePercent < 65 && (
+            <SisterSeasonsCardFigma
+              sisters={props.sisterSeasons || []}
+              onRetake={() => window.location.href = "/analyze"}
+              showViewAnyway={false}
+            />
           )}
           {props.evaluation && (
             <div id="leitura" className="ar-why">
@@ -740,19 +719,24 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
   );
 }
 
-function ConfidenceBar({ label, value }: { label: string; value: number }) {
+/**
+ * Figma: Axis bar — API label + % + bar
+ * Missing axis in API → hide row (handled by parent)
+ */
+function AxisBar({ label, value }: { label: string; value: number }) {
   const percent = Math.round(value * 100);
-  const band = value < 0.55 ? "low" : value < 0.75 ? "medium" : "high";
+  // Figma bands: <65 low, 65-79 moderate, ≥80 high
+  const band = percent < 65 ? "low" : percent < 80 ? "moderate" : "high";
   
   return (
-    <div className="ar-confidence-bar">
-      <div className="ar-confidence-bar__header">
-        <span className="ar-confidence-bar__label">{label}</span>
-        <span className="ar-confidence-bar__value">{percent}%</span>
+    <div className="ar-axis-bar">
+      <div className="ar-axis-bar__header">
+        <span className="ar-axis-bar__label">{label}</span>
+        <span className="ar-axis-bar__value">{percent}%</span>
       </div>
-      <div className="ar-confidence-bar__track">
+      <div className="ar-axis-bar__track">
         <div
-          className={`ar-confidence-bar__fill ar-confidence-bar__fill--${band}`}
+          className={`ar-axis-bar__fill ar-axis-bar__fill--${band}`}
           style={{ width: `${percent}%` }}
         />
       </div>

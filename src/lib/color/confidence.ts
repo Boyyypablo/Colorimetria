@@ -160,6 +160,9 @@ export function shouldNeedsReview(input: {
   );
 }
 
+/**
+ * Figma specs: high ≥80 / moderate 65–79 / low <65
+ */
 export function formatConfidence(confidence: number): {
   percent: number;
   band: "baixa" | "moderada" | "alta";
@@ -168,20 +171,26 @@ export function formatConfidence(confidence: number): {
   // Nunca exibir 100% em estimativa automática (cap de regras = 85%)
   const capped = Math.min(confidence, 0.85);
   const percent = Math.round(capped * 100);
-  if (capped < REVIEW_CONFIDENCE_THRESHOLD) {
+  
+  // Figma specs: low <65%
+  if (percent < 65) {
     return {
       percent,
       band: "baixa",
       note: "revisão recomendada",
     };
   }
-  if (capped < 0.72) {
+  
+  // Figma specs: moderate 65–79%
+  if (percent < 80) {
     return {
       percent,
       band: "moderada",
       note: "estimativa automática",
     };
   }
+  
+  // Figma specs: high ≥80%
   return {
     percent,
     band: "alta",
