@@ -31,26 +31,43 @@ export function LoginForm({
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
     const fd = new FormData(e.currentTarget);
-    const res = await signIn("credentials", {
-      email: String(fd.get("email")),
-      password: String(fd.get("password")),
-      redirect: false,
-    });
-    setLoading(false);
-    if (res?.error) {
-      setError("E-mail ou senha inválidos.");
-      return;
+    const email = String(fd.get("email"));
+    const password = String(fd.get("password"));
+    
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      
+      setLoading(false);
+      
+      if (res?.error) {
+        setError("E-mail ou senha inválidos.");
+        return;
+      }
+      
+      if (res?.ok) {
+        // Check for callbackUrl in query params
+        const searchParams = new URLSearchParams(window.location.search);
+        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+        router.push(callbackUrl);
+        router.refresh();
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("Erro ao tentar fazer login. Tente novamente.");
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8" onSubmit={onSubmit}>
+          <form className="p-6 md:p-8" method="post" onSubmit={onSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <Link href="/" className="mb-1">
