@@ -34,19 +34,21 @@ const credentialsSchema = z.object({
   password: z.string().min(6).max(128),
 });
 
+// Auth.js v5 cookie naming: authjs.session-token (or __Secure-authjs.session-token for HTTPS)
+const useSecureCookies = !!process.env.AUTH_URL?.startsWith("https://");
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   cookies: {
     sessionToken: {
-      name:
-        process.env.NODE_ENV === "production"
-          ? "__Secure-next-auth.session-token"
-          : "next-auth.session-token",
+      name: useSecureCookies
+        ? "__Secure-authjs.session-token"
+        : "authjs.session-token",
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production" || !!process.env.AUTH_URL?.startsWith("https://"),
+        secure: useSecureCookies,
       },
     },
   },
@@ -59,21 +61,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(raw, request) {
         const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
         const ip = request ? clientIp(request) : "unknown";
         const email = parsed.data.email.toLowerCase();
         const rlIp = rateLimit(`login:ip:${ip}`, 30, 15 * 60 * 1000);
         const rlEmail = rateLimit(`login:email:${email}`, 10, 15 * 60 * 1000);
-        if (!rlIp.ok || !rlEmail.ok) return null;
+        
+        if (!rlIp.ok || !rlEmail.ok) {
+          console.warn(`[Auth] Rate limit hit for ${email} / ${ip}`);
+          throw new Error("RATE_LIMIT");
+        }
 
         const user = await prisma.user.findUnique({
           where: { email },
         });
-        if (!user) return null;
+        
+        if (!user) {
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
-        if (!ok) return null;
+        if (!ok) {
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
         return {
           id: user.id,

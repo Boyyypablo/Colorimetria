@@ -46,7 +46,23 @@ export function LoginForm({
       setLoading(false);
       
       if (res?.error) {
-        setError("E-mail ou senha inválidos.");
+        // Map Auth.js error codes to user-friendly messages
+        if (res.error === "CredentialsSignin") {
+          // Check if it's a rate limit (Auth.js wraps thrown errors)
+          const errorLower = String(res.error).toLowerCase();
+          if (errorLower.includes("rate") || errorLower.includes("limit")) {
+            setError("Muitas tentativas. Aguarde 15 minutos e tente novamente.");
+          } else {
+            setError("E-mail ou senha inválidos.");
+          }
+        } else if (res.error.includes("RATE_LIMIT")) {
+          setError("Muitas tentativas. Aguarde 15 minutos e tente novamente.");
+        } else if (res.error.includes("INVALID_CREDENTIALS")) {
+          setError("E-mail ou senha inválidos.");
+        } else {
+          setError("Erro ao fazer login. Tente novamente.");
+        }
+        console.error("[Login] SignIn error:", res.error);
         return;
       }
       
@@ -56,9 +72,13 @@ export function LoginForm({
         const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
         router.push(callbackUrl);
         router.refresh();
+      } else {
+        // Fallback for unexpected response
+        setError("Erro ao fazer login. Tente novamente.");
       }
     } catch (err) {
       setLoading(false);
+      console.error("[Login] Exception:", err);
       setError("Erro ao tentar fazer login. Tente novamente.");
     }
   }
