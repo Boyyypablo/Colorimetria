@@ -296,7 +296,7 @@ export async function analyzeImageBuffer(
   };
 
   const predictor = createColorPredictor();
-  const { seasonId, undertoneLabel, confidence } = predictor.predict(features);
+  const { seasonId, undertoneLabel, confidence, confidenceBreakdown } = predictor.predict(features);
   const needsReview = shouldNeedsReview({
     confidence,
     temperatureScore: features.temperatureScore,
@@ -329,6 +329,7 @@ export async function analyzeImageBuffer(
     photoQuality,
     needsReview,
     predictorId: predictor.id,
+    confidenceBreakdown,
   };
 }
 
@@ -389,5 +390,6 @@ export function classifyFromLab(
       usedFaceFallback: false,
     }),
     predictorId: predictor.id,
+    confidenceBreakdown: undefined,
   };
 }

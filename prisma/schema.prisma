@@ -121,6 +121,8 @@ model Analysis {
   seasonId           String?
   overrideSeasonId   String?
   confidence         Float?
+  /// P0.3: Breakdown de confiança por eixo (temp, value, chroma, contrast)
+  confidenceBreakdown Json?
   features           Json?
   photoQuality       Json?
   undertoneLabel     String?

@@ -195,6 +195,25 @@ export default async function AnalysisPage({ params }: Params) {
   const confidenceUi =
     analysis.confidence != null ? formatConfidence(analysis.confidence) : null;
 
+  // P0.3: Breakdown de confiança por eixo
+  const confidenceBreakdown = analysis.confidenceBreakdown as {
+    byAxis: {
+      temperature: number;
+      value: number;
+      chroma: number;
+      contrast: number;
+    };
+  } | null;
+
+  // P0.5: Estações irmãs
+  const sisterSeasonIds = (rec as { sisterSeasons?: string[] } | null)?.sisterSeasons;
+  const sisterSeasons = sisterSeasonIds
+    ? await prisma.seasonPalette.findMany({
+        where: { id: { in: sisterSeasonIds } },
+        select: { id: true, namePt: true },
+      })
+    : null;
+
   const vto = getVtoRuntimeInfo();
 
   const useColors = rec?.useColors || [];
@@ -327,6 +346,8 @@ export default async function AnalysisPage({ params }: Params) {
     confidenceBand: confidenceUi?.band ?? null,
     confidenceNote: confidenceUi?.note ?? null,
     lowConfidenceWarning: confidenceUi?.band === "baixa",
+    confidenceBreakdown: confidenceBreakdown?.byAxis ?? null,
+    sisterSeasons: sisterSeasons ?? null,
     intention: analysis.intention || null,
     goalLabels,
     contextLabel: contextLabel[analysis.context] || analysis.context || null,

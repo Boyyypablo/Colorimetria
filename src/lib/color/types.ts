@@ -99,4 +99,14 @@ export type ClassificationResult = {
   photoQuality: PhotoQuality;
   needsReview: boolean;
   predictorId: string;
+  /** P0.3: Breakdown de confiança por eixo */
+  confidenceBreakdown?: {
+    overall: number;
+    byAxis: {
+      temperature: number;
+      value: number;
+      chroma: number;
+      contrast: number;
+    };
+  };
 };

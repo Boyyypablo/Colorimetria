@@ -57,6 +57,15 @@ export type AnalysisResultViewProps = {
   confidenceBand: "baixa" | "moderada" | "alta" | null;
   confidenceNote: string | null;
   lowConfidenceWarning: boolean;
+  /** P0.3: Breakdown por eixo */
+  confidenceBreakdown?: {
+    temperature: number;
+    value: number;
+    chroma: number;
+    contrast: number;
+  } | null;
+  /** P0.5: Estações irmãs (quando confiança < 65%) */
+  sisterSeasons?: Array<{ id: string; namePt: string }> | null;
   intention: string | null;
   goalLabels: string[];
   contextLabel: string | null;
@@ -210,11 +219,37 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                 </>
               )}
               {props.confidencePercent != null && (
-                <span className="ar-hero__meta-note">
-                  Certeza da medição: {props.confidencePercent}%
-                  {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
-                  {props.confidenceNote ? ` — ${props.confidenceNote}` : ""}
-                </span>
+                <>
+                  <span className="ar-hero__meta-note">
+                    Certeza da medição: {props.confidencePercent}%
+                    {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
+                    {props.confidenceNote ? ` — ${props.confidenceNote}` : ""}
+                  </span>
+                  {/* P0.3: Breakdown de confiança por eixo */}
+                  {props.confidenceBreakdown && (
+                    <div className="ar-confidence-breakdown">
+                      <p className="ar-confidence-breakdown__title">Confiança por eixo:</p>
+                      <div className="ar-confidence-breakdown__bars">
+                        <ConfidenceBar
+                          label="Temperatura"
+                          value={props.confidenceBreakdown.temperature}
+                        />
+                        <ConfidenceBar
+                          label="Valor"
+                          value={props.confidenceBreakdown.value}
+                        />
+                        <ConfidenceBar
+                          label="Croma"
+                          value={props.confidenceBreakdown.chroma}
+                        />
+                        <ConfidenceBar
+                          label="Contraste"
+                          value={props.confidenceBreakdown.contrast}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -222,6 +257,26 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
           {props.undertoneHint && <p className="ar-hero__desc">{props.undertoneHint}</p>}
           {props.sisterNote && <p className="ar-hero__desc">{props.sisterNote}</p>}
+
+          {/* P0.5: Estações irmãs quando confiança baixa */}
+          {props.sisterSeasons && props.sisterSeasons.length > 0 && (
+            <div className="ar-sister-seasons">
+              <p className="ar-sister-seasons__label">
+                💡 Estações próximas — a medição está no limite entre estas cartelas:
+              </p>
+              <div className="ar-sister-seasons__list">
+                {props.sisterSeasons.map((sister) => (
+                  <span key={sister.id} className="ar-sister-seasons__item">
+                    {sister.namePt}
+                  </span>
+                ))}
+              </div>
+              <p className="ar-sister-seasons__hint">
+                Se você se identifica mais com uma destas, explore suas paletas também. 
+                Em caso de dúvida, uma consultora pode revisar.
+              </p>
+            </div>
+          )}
           {props.evaluation && (
             <div id="leitura" className="ar-why">
               <p className="ar-why__label">Por que esta cartela</p>
@@ -682,5 +737,25 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
         </div>
       )}
     </>
+  );
+}
+
+function ConfidenceBar({ label, value }: { label: string; value: number }) {
+  const percent = Math.round(value * 100);
+  const band = value < 0.55 ? "low" : value < 0.75 ? "medium" : "high";
+  
+  return (
+    <div className="ar-confidence-bar">
+      <div className="ar-confidence-bar__header">
+        <span className="ar-confidence-bar__label">{label}</span>
+        <span className="ar-confidence-bar__value">{percent}%</span>
+      </div>
+      <div className="ar-confidence-bar__track">
+        <div
+          className={`ar-confidence-bar__fill ar-confidence-bar__fill--${band}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
   );
 }

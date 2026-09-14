@@ -1,4 +1,5 @@
 import type { ClassificationResult, ColorFeatures } from "../types";
+import type { ConfidenceBreakdown } from "../confidence";
 
 /**
  * Preditor de estação — trocável via COLOR_PREDICTOR.
@@ -9,7 +10,9 @@ export interface ColorPredictor {
   predict(features: ColorFeatures): Pick<
     ClassificationResult,
     "seasonId" | "undertoneLabel" | "confidence"
-  >;
+  > & {
+    confidenceBreakdown?: ConfidenceBreakdown;
+  };
 }
 
 export type ColorPredictorId = "rules" | "tabular-v1";

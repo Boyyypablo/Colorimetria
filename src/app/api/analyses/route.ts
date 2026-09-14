@@ -11,6 +11,7 @@ import { evaluateWithRubric } from "@/lib/knowledge/evaluate";
 import { decideAnalysisStatus, presentEvaluation } from "@/lib/knowledge/explain";
 import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { calculateSisterSeasons, shouldShowSisterSeasons } from "@/lib/color/sister-seasons";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -108,6 +109,7 @@ export async function POST(request: Request) {
   });
 
   try {
+    // P0.2: analyzeImageBuffer pode lançar erro se rosto não for detectado
     const result = applyPhotoIntake(await analyzeImageBuffer(buffer), parsePhotoIntake(form));
     const season = getSeasonById(result.seasonId);
     if (!season) {
@@ -130,6 +132,12 @@ export async function POST(request: Request) {
     });
     const evaluation = presentEvaluation(opinion, season.namePt, season.id);
     recommendations = { ...recommendations, evaluation };
+
+    // P0.5: Calcular estações irmãs se confiança baixa
+    let sisterSeasons: string[] | undefined;
+    if (shouldShowSisterSeasons(result.confidence)) {
+      sisterSeasons = calculateSisterSeasons(result.features, result.seasonId);
+    }
 
     const ai = await generateConsultantPlan({
       intention,
@@ -157,6 +165,14 @@ export async function POST(request: Request) {
       };
     }
 
+    // P0.5: Adicionar estações irmãs às recomendações
+    if (sisterSeasons && sisterSeasons.length > 0) {
+      recommendations = {
+        ...recommendations,
+        sisterSeasons,
+      };
+    }
+
     const needsReviewStatus = decideAnalysisStatus({
       classifierNeedsReview: result.needsReview,
       rubricNeedsReview: opinion.needsReview,
@@ -170,6 +186,7 @@ export async function POST(request: Request) {
         status: needsReviewStatus,
         seasonId: result.seasonId,
         confidence: result.confidence,
+        confidenceBreakdown: result.confidenceBreakdown ?? Prisma.JsonNull,
         features: result.features,
         photoQuality: result.photoQuality,
         undertoneLabel: result.undertoneLabel,
@@ -202,13 +219,30 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ analysis });
   } catch (err) {
+    // P0.2: Se erro for de detecção de rosto, retornar 400 (bad request) sem criar análise NEEDS_REVIEW
+    const errorMsg = err instanceof Error ? err.message : "Não foi possível concluir a análise.";
+    const isFaceDetectionError = errorMsg.includes("localizar seu rosto") || errorMsg.includes("rosto na foto");
+    
+    if (isFaceDetectionError) {
+      // Deletar análise pending pois foto é inválida
+      await prisma.analysis.delete({ where: { id: pending.id } });
+      return NextResponse.json(
+        {
+          error: errorMsg,
+          code: "FACE_NOT_DETECTED",
+        },
+        { status: 400 },
+      );
+    }
+    
+    // Outros erros: marcar como NEEDS_REVIEW
     await prisma.analysis.update({
       where: { id: pending.id },
       data: { status: "NEEDS_REVIEW" },
     });
     return NextResponse.json(
       {
-        error: err instanceof Error ? err.message : "Não foi possível concluir a análise.",
+        error: errorMsg,
         analysisId: pending.id,
       },
       { status: 500 },
