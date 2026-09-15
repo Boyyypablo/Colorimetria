@@ -36,6 +36,8 @@ export function LoginForm({
     const email = String(fd.get("email"));
     const password = String(fd.get("password"));
     
+    console.log("[Login] Attempting signIn with email:", email);
+    
     try {
       const res = await signIn("credentials", {
         email,
@@ -43,39 +45,45 @@ export function LoginForm({
         redirect: false,
       });
       
+      console.log("[Login] signIn response:", {
+        ok: res?.ok,
+        error: res?.error,
+        status: res?.status,
+        url: res?.url,
+      });
+      
       setLoading(false);
       
-      if (res?.error) {
-        // Map Auth.js error codes to user-friendly messages
-        if (res.error === "CredentialsSignin") {
-          // Check if it's a rate limit (Auth.js wraps thrown errors)
-          const errorLower = String(res.error).toLowerCase();
-          if (errorLower.includes("rate") || errorLower.includes("limit")) {
-            setError("Muitas tentativas. Aguarde 15 minutos e tente novamente.");
+      // Always show error if not ok
+      if (!res?.ok) {
+        let errorMsg = "Erro ao fazer login. Tente novamente.";
+        
+        if (res?.error) {
+          // Map Auth.js error codes to user-friendly messages
+          if (res.error === "CredentialsSignin") {
+            errorMsg = "E-mail ou senha inválidos.";
+          } else if (res.error.includes("RATE_LIMIT")) {
+            errorMsg = "Muitas tentativas. Aguarde 15 minutos e tente novamente.";
+          } else if (res.error.includes("INVALID_CREDENTIALS")) {
+            errorMsg = "E-mail ou senha inválidos.";
+          } else if (res.error === "Configuration") {
+            errorMsg = "Erro de configuração. Verifique AUTH_URL e reinicie o servidor.";
           } else {
-            setError("E-mail ou senha inválidos.");
+            errorMsg = `Erro: ${res.error}`;
           }
-        } else if (res.error.includes("RATE_LIMIT")) {
-          setError("Muitas tentativas. Aguarde 15 minutos e tente novamente.");
-        } else if (res.error.includes("INVALID_CREDENTIALS")) {
-          setError("E-mail ou senha inválidos.");
-        } else {
-          setError("Erro ao fazer login. Tente novamente.");
         }
-        console.error("[Login] SignIn error:", res.error);
+        
+        console.error("[Login] SignIn failed:", res?.error || "unknown");
+        setError(errorMsg);
         return;
       }
       
-      if (res?.ok) {
-        // Check for callbackUrl in query params
-        const searchParams = new URLSearchParams(window.location.search);
-        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-        router.push(callbackUrl);
-        router.refresh();
-      } else {
-        // Fallback for unexpected response
-        setError("Erro ao fazer login. Tente novamente.");
-      }
+      // Success
+      console.log("[Login] ✓ SignIn successful");
+      const searchParams = new URLSearchParams(window.location.search);
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      router.push(callbackUrl);
+      router.refresh();
     } catch (err) {
       setLoading(false);
       console.error("[Login] Exception:", err);

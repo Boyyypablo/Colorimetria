@@ -34,24 +34,10 @@ const credentialsSchema = z.object({
   password: z.string().min(6).max(128),
 });
 
-// Auth.js v5 cookie naming: authjs.session-token (or __Secure-authjs.session-token for HTTPS)
-const useSecureCookies = !!process.env.AUTH_URL?.startsWith("https://");
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  cookies: {
-    sessionToken: {
-      name: useSecureCookies
-        ? "__Secure-authjs.session-token"
-        : "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: useSecureCookies,
-      },
-    },
-  },
+  // Let Auth.js v5 handle cookies with defaults (trustHost + AUTH_URL determine secure/naming)
+  // Custom cookies config was causing issues with Cloudflare tunnel
   providers: [
     Credentials({
       name: "credentials",
@@ -60,13 +46,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Senha", type: "password" },
       },
       async authorize(raw, request) {
+        console.log("[Auth] authorize() called, AUTH_URL:", process.env.AUTH_URL);
+        
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) {
+          console.error("[Auth] Invalid credentials schema");
           throw new Error("INVALID_CREDENTIALS");
         }
 
         const ip = request ? clientIp(request) : "unknown";
         const email = parsed.data.email.toLowerCase();
+        console.log("[Auth] Login attempt for:", email, "from IP:", ip);
+        
         const rlIp = rateLimit(`login:ip:${ip}`, 30, 15 * 60 * 1000);
         const rlEmail = rateLimit(`login:email:${email}`, 10, 15 * 60 * 1000);
         
@@ -80,14 +71,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
         
         if (!user) {
+          console.warn("[Auth] User not found:", email);
           throw new Error("INVALID_CREDENTIALS");
         }
 
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!ok) {
+          console.warn("[Auth] Invalid password for:", email);
           throw new Error("INVALID_CREDENTIALS");
         }
 
+        console.log("[Auth] ✓ authorize() successful for:", email, "role:", user.role);
         return {
           id: user.id,
           email: user.email,
@@ -99,8 +93,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
+        console.log("[Auth] jwt() callback with user:", user.email, "trigger:", trigger);
         token.id = user.id!;
         token.role = user.role;
         token.roleCheckedAt = Date.now();
@@ -122,6 +117,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.roleCheckedAt = Date.now();
       }
       return token;
+    },
+    async session({ session, token }) {
+      console.log("[Auth] session() callback, token.id:", token.id);
+      if (session.user) {
+        session.user.id = String(token.id ?? "");
+        session.user.role = (token.role as Role) ?? "USER";
+      }
+      return session;
     },
   },
 });
