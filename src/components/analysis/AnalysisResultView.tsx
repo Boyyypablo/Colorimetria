@@ -10,6 +10,7 @@ import type { GarmentKind } from "../../../data/wardrobe/garments";
 import { ConfidenceBadge as ConfidenceBadgeFigma } from "@/components/analyze/ConfidenceBadge";
 import { SisterSeasonsCard as SisterSeasonsCardFigma } from "@/components/analyze/SisterSeasonsCard";
 import { PaywallCard } from "@/components/analysis/PaywallCard";
+import { FrostedConfidenceBlock, FrostedPalette } from "@/components/analysis/FrostedPaidContent";
 
 export type RecItem = {
   hex: string;
@@ -216,7 +217,23 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               cartela. Refaça a selfie ou peça revisão.
             </p>
           )}
-          {/* Offer lock: FREE = station name only; PAID = confidence + axes + palette */}
+
+          {/* Offer UI v3.1: FREE = station name + blurb (2-4 sentences about the season type) */}
+          {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
+
+          {/* Offer UI v3.1: Reserved slot for future AI narration video */}
+          <div className="ar-hero__video-slot">
+            <button
+              type="button"
+              className="ar-hero__video-cta"
+              disabled
+              title="Em breve: vídeo explicativo sobre sua estação"
+            >
+              Assistir explicação
+            </button>
+          </div>
+
+          {/* Offer lock: PAID = confidence + axes + palette */}
           {!props.isLocked && (props.undertoneLabel || props.confidencePercent != null) && (
             <div className="ar-hero__meta">
               {props.undertoneLabel && (
@@ -249,12 +266,14 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
           )}
 
-          {/* Offer lock: Paywall card when locked (but NOT for confidence <65% - that stays free) */}
+          {/* Offer UI v3.1: Frosted (opaque) placeholders when locked - no readable % */}
           {props.isLocked && (props.confidencePercent == null || props.confidencePercent >= 65) && (
-            <PaywallCard analysisId={props.analysisId} />
+            <>
+              <FrostedConfidenceBlock />
+              <PaywallCard analysisId={props.analysisId} />
+            </>
           )}
 
-          {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
           {props.undertoneHint && <p className="ar-hero__desc">{props.undertoneHint}</p>}
           {props.sisterNote && <p className="ar-hero__desc">{props.sisterNote}</p>}
 
@@ -478,6 +497,9 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             )}
           </section>
         )} */}
+
+        {/* Offer UI v3.1: Frosted palette when locked */}
+        {props.isLocked && <FrostedPalette />}
 
         {/* Offer lock: Palette is part of PAID SKU (R$97) */}
         {!props.isLocked && props.useColors.length > 0 && (
