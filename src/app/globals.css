@@ -1620,6 +1620,45 @@ a {
   font-weight: 300;
 }
 
+/* Quality tips (informational, no checkboxes) */
+.af-quality-tips {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--lp-linen);
+  padding-top: 1.5rem;
+}
+
+.af-quality-tips__label {
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9a8a7a;
+  margin-bottom: 1rem;
+}
+
+.af-quality-tips__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.af-quality-tips__item {
+  font-size: 0.9rem;
+  color: #5a4a3a;
+  line-height: 1.5;
+  font-weight: 300;
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+  position: relative;
+}
+
+.af-quality-tips__item::before {
+  content: "•";
+  position: absolute;
+  left: 0.5rem;
+  color: var(--lp-terracotta);
+  font-weight: 500;
+}
+
 .af-native-checkbox {
   appearance: none;
   -webkit-appearance: none;

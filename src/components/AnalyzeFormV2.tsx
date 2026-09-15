@@ -59,7 +59,6 @@ export function AnalyzeFormV2() {
   const [rejectReasons, setRejectReasons] = useState<RejectReason[]>([]);
   
   // Form state
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [intention, setIntention] = useState("");
   const [goals, setGoals] = useState<AnalysisGoalId[]>([...DEFAULT_ANALYSIS_GOALS]);
   const [context, setContext] = useState<"casual" | "trabalho" | "noite" | "">("");
@@ -95,7 +94,7 @@ export function AnalyzeFormV2() {
       const result = await detectFaceInBrowser(file);
       if (gen !== frameGen.current) return;
       
-      // Pre-check quality
+      // Pre-check quality (system-driven, no manual checkboxes)
       const issues: string[] = [];
       const reasons: RejectReason[] = [];
       
@@ -113,6 +112,28 @@ export function AnalyzeFormV2() {
       if (!result.found) {
         issues.push("Rosto não detectado");
         reasons.push("face");
+      } else {
+        // Check face size and position
+        const faceArea = result.box.width * result.box.height;
+        const faceCenterY = result.box.y + result.box.height / 2;
+        
+        // Face too small (less than 8% of image area)
+        if (faceArea < 0.08) {
+          issues.push("Rosto muito pequeno — aproxime-se da câmera");
+          reasons.push("face");
+        }
+        
+        // Face too low in frame (center below 65% height)
+        if (faceCenterY > 0.65) {
+          issues.push("Centralize seu rosto na câmera");
+          reasons.push("face");
+        }
+        
+        // Face too high (center above 15% height) - mostly background above
+        if (faceCenterY < 0.15) {
+          issues.push("Abaixe a câmera — seu rosto está muito no topo");
+          reasons.push("face");
+        }
       }
       
       setPhotoQualityIssues(issues);
@@ -167,14 +188,12 @@ export function AnalyzeFormV2() {
     });
   }
 
-  // Step 3: Analyzing → Submit
-  const allTipsConfirmed = PHOTO_QUALITY_TIPS.every((tip) => checklist[tip.id]);
+  // Step 3: Analyzing → Submit (no manual checkboxes - quality is system-driven)
   const trimmedIntention = intention.trim();
   const photoQualityOk = faceStatus === "found" && photoQualityIssues.length === 0;
   const canSubmit =
     Boolean(photoFile) &&
     photoQualityOk &&
-    allTipsConfirmed &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
     Boolean(context) &&
@@ -366,21 +385,16 @@ export function AnalyzeFormV2() {
           aria-label="Foto do rosto"
         />
 
-        <div className="af-checklist">
-          <p className="af-checklist__label">Confirme a qualidade da foto</p>
-          {PHOTO_QUALITY_TIPS.map((tip) => (
-            <label key={tip.id} className="af-checklist__item">
-              <input
-                type="checkbox"
-                className="af-native-checkbox"
-                checked={Boolean(checklist[tip.id])}
-                onChange={(e) =>
-                  setChecklist((prev) => ({ ...prev, [tip.id]: e.target.checked }))
-                }
-              />
-              <span className="af-checklist__text">{tip.label}</span>
-            </label>
-          ))}
+        {/* Photo quality tips (informational only - quality gates are system-driven) */}
+        <div className="af-quality-tips">
+          <p className="af-quality-tips__label">Dicas para melhor resultado:</p>
+          <ul className="af-quality-tips__list">
+            {PHOTO_QUALITY_TIPS.map((tip) => (
+              <li key={tip.id} className="af-quality-tips__item">
+                {tip.label}
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
