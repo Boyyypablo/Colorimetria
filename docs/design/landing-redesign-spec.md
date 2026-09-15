@@ -160,6 +160,32 @@ Redesign deve:
 
 ---
 
+## Figma Design Handoff
+
+**Status:** ⏳ Aguardando handoff files no repo  
+**Expected Path:** `design-handoff/servicos-transformacao-2026-09-15/` (ou similar)  
+**Format:** HTML/ENG-HANDOFF (Figma export)
+
+### Copy Keys Locked (Figma)
+- `Liberar` - verb para paywall CTAs ✅
+- `Visagismo` - teaser service name ✅
+- `critério especialista` - specialist method tone
+- `Lendo sua imagem` - analyzing screen copy ✅
+
+### Quando Handoff Estiver Disponível
+1. Localizar handoff files em `/workspace/design-handoff/servicos-transformacao-2026-09-15/`
+2. Verificar HTML export para structure/layout
+3. Extrair assets (ilustrações, ícones, badges)
+4. Confirmar copy exato vs. spec
+5. Implementar no PR #2
+
+### Current Status
+- Handoff files: ⏳ Não disponível no repo ainda
+- Spec: ✅ Documentada (este arquivo)
+- Implementation: 📋 Aguardando handoff + capacity
+
+---
+
 ## Analyzing Screen Specification
 
 **Status:** ✅ Locked by Produto/Figma
@@ -198,7 +224,30 @@ Exemplo: `Protocolo profissional · Maria`
 
 ---
 
+## Implementation Checklist
+
+Quando pegar o trabalho de landing (PR #2):
+
+- [ ] Verificar se handoff files estão disponíveis em `design-handoff/servicos-transformacao-2026-09-15/`
+- [ ] Se disponível: revisar HTML export, extrair assets, confirmar copy
+- [ ] Se não disponível: implementar baseado nesta spec + solicitar assets faltantes
+- [ ] Atualizar `LandingHome.tsx`: remover grid atual, criar hero full-width
+- [ ] Criar aside "Como funciona" (3–4 steps)
+- [ ] Criar teaser "Visagismo Em breve" (sem CTA)
+- [ ] Atualizar analyzing copy em `AnalyzeFormV2.tsx`
+- [ ] Adicionar CSS para novo layout
+- [ ] QA visual: verificar responsividade, tone guide
+- [ ] Commit + push to PR #2
+
+---
+
 ## Changelog
+
+**2026-09-15 (02:14 UTC):** Figma handoff reference adicionada  
+- Expected path: `design-handoff/servicos-transformacao-2026-09-15/`
+- Format: HTML/ENG-HANDOFF (Figma export)
+- Copy keys locked: Liberar, Visagismo, critério especialista, Lendo sua imagem
+- Implementation checklist adicionado
 
 **2026-09-15 (02:12 UTC):** Locked handoff completo (Produto/Figma)  
 - Landing: Colorimetria hero + Como funciona aside
