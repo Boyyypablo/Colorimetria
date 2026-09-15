@@ -151,9 +151,33 @@ model Analysis {
   simulations    SimulationJob[]
   sample         AnalysisSample?
   feedbackEvents FeedbackEvent[]
+  entitlement    AnalysisEntitlement?
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+/// Entitlement para resultado completo (confidence + axes + palette)
+model AnalysisEntitlement {
+  id              String   @id @default(cuid())
+  analysisId      String   @unique
+  userId          String
+  /// SKU: "resultado-completo" (R$97 provisional)
+  sku             String   @default("resultado-completo")
+  /// Payment provider reference (Stripe payment intent, etc.)
+  paymentRef      String?
+  /// Payment status: "pending" | "completed" | "failed"
+  paymentStatus   String   @default("pending")
+  /// Price paid in cents (9700 = R$97.00)
+  priceCents      Int      @default(9700)
+  grantedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([paymentStatus])
 }
 
 /// Features canônicas versionadas para treino (Fase 2/3).

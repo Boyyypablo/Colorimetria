@@ -66,6 +66,7 @@ export default async function AnalysisPage({ params }: Params) {
     include: {
       season: true,
       overrideSeason: true,
+      entitlement: true, // Board v3: Check payment status
       reviews: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -326,6 +327,14 @@ export default async function AnalysisPage({ params }: Params) {
 
   const statusStyle = STATUS_STYLE[analysis.status] ?? STATUS_STYLE.PENDING;
 
+  // Board v3: Calculate isLocked (paywall for confidence + axes + palette)
+  // FREE: station name only (never gate the name after successful analysis)
+  // PAID: confidence band + 4 axes + basic palette (R$97 provisional)
+  // No paywall on reject or confidence <65%
+  const lowConfidence = analysis.confidence != null && analysis.confidence < 0.65;
+  const hasCompletedPayment = analysis.entitlement?.paymentStatus === "completed";
+  const isLocked = !lowConfidence && !hasCompletedPayment;
+
   const viewProps: AnalysisResultViewProps = {
     analysisId: analysis.id,
     photoUrl: `/api/uploads/${analysis.imagePath}`,
@@ -335,6 +344,7 @@ export default async function AnalysisPage({ params }: Params) {
     undertoneLabel: analysis.undertoneLabel || null,
     undertoneHint: rec?.undertoneHint || null,
     sisterNote: coaching?.sisterNote || rec?.coaching?.sisterNote || null,
+    isLocked, // Board v3: Paywall entitlement
     evaluation: evaluation
       ? {
           why: evaluation.why,

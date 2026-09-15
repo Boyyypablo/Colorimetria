@@ -251,13 +251,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
 
           {/* Offer lock: Paywall card when locked (but NOT for confidence <65% - that stays free) */}
           {props.isLocked && (props.confidencePercent == null || props.confidencePercent >= 65) && (
-            <PaywallCard
-              analysisId={props.analysisId}
-              onUnlock={(id) => {
-                console.log("[PaywallCard] Unlock requested for analysis:", id);
-                // TODO: Implement payment flow
-              }}
-            />
+            <PaywallCard analysisId={props.analysisId} />
           )}
 
           {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}

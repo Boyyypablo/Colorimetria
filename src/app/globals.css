@@ -4008,6 +4008,7 @@ a {
 
 /* ================================================================
    Paywall Card (Offer Lock for Entitlement)
+   Board v3: S1 initial → S2 confirmation → S4 success
    ================================================================ */
 .paywall-card {
   max-width: 32rem;
@@ -4017,6 +4018,11 @@ a {
   border: 2px solid var(--lp-terracotta);
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(212, 165, 116, 0.15);
+}
+
+.paywall-card--success {
+  border-color: var(--lp-sage);
+  background: linear-gradient(135deg, #eff4f1 0%, #f5f8f6 100%);
 }
 
 .paywall-card__content {
@@ -4045,6 +4051,21 @@ a {
   margin-bottom: 0.5rem;
 }
 
+.paywall-card__error {
+  font-size: 0.875rem;
+  color: #c44;
+  background: #fee;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-top: 1rem;
+}
+
+.paywall-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .paywall-card__cta {
   width: 100%;
   padding: 1rem 1.5rem;
@@ -4067,4 +4088,16 @@ a {
 .paywall-card__cta:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.paywall-card__cta--secondary {
+  background: white;
+  color: var(--lp-charcoal);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.paywall-card__cta--secondary:hover:not(:disabled) {
+  background: #f9f9f9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
