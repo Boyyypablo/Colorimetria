@@ -1,6 +1,6 @@
 import type { ColorFeatures, LabColor } from "../types";
 import type { ColorPredictor } from "./types";
-import { calibrateRulesConfidence } from "../confidence";
+import { calibrateRulesConfidence, calibrateConfidenceByAxis } from "../confidence";
 
 function contrastBand(score: number): "low" | "medium" | "high" {
   if (score >= 28) return "high";
@@ -87,7 +87,7 @@ export function resolveSeasonAxes(features: ColorFeatures) {
   };
 }
 
-function pickSeason(axes: ReturnType<typeof resolveSeasonAxes>): string {
+export function pickSeason(axes: ReturnType<typeof resolveSeasonAxes>): string {
   const { warm, value, chroma, contrast } = axes;
 
   if (warm) {
@@ -143,16 +143,32 @@ export class RulesColorPredictor implements ColorPredictor {
         ? "frio (rosado/azulado)"
         : "frio suave";
 
+    const hasReliableFace = Boolean(
+      features.faceBox && !features.detectorProvider.includes("fallback"),
+    );
+    const hasHairSample = Boolean(features.labHair);
+
     let confidence = calibrateRulesConfidence({
       temperatureScore: axes.temperatureScore,
       sampleCount: features.sampleCount,
       skinPixelRatio: features.skinPixelRatio,
       detectorProvider: features.detectorProvider,
-      hasReliableFace: Boolean(
-        features.faceBox && !features.detectorProvider.includes("fallback"),
-      ),
-      hasHairSample: Boolean(features.labHair),
+      hasReliableFace,
+      hasHairSample,
       contrastScore: features.contrastScore,
+    });
+
+    // P0.3: Calcular breakdown por eixo
+    const confidenceBreakdown = calibrateConfidenceByAxis({
+      temperatureScore: axes.temperatureScore,
+      sampleCount: features.sampleCount,
+      skinPixelRatio: features.skinPixelRatio,
+      detectorProvider: features.detectorProvider,
+      hasReliableFace,
+      hasHairSample,
+      contrastScore: features.contrastScore,
+      contrastSource: features.contrastSource,
+      lightingWarning: false, // será preenchido pelo classifier
     });
 
     // Nudge de temperatura = menos certeza (luz/cabelo)
@@ -160,6 +176,6 @@ export class RulesColorPredictor implements ColorPredictor {
       confidence = Number(Math.min(confidence, 0.62).toFixed(3));
     }
 
-    return { seasonId, undertoneLabel, confidence };
+    return { seasonId, undertoneLabel, confidence, confidenceBreakdown };
   }
 }

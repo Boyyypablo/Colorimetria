@@ -163,5 +163,7 @@ export function buildRecommendations(
     ethicalNote:
       "A entrega segue o que você pediu no upload. Harmonia sazonal, cabelo e cuidados com a pele são camadas distintas. Não é diagnóstico dermatológico nem substitui consultoria presencial.",
     context,
+    evaluation: undefined as any, // Populated after initial build
+    sisterSeasons: undefined as string[] | undefined, // Populated if confidence low
   };
 }

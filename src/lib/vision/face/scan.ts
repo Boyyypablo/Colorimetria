@@ -49,7 +49,9 @@ export function findSkinFaceWindow(
     }
   }
 
-  if (!best || best.score < 0.04) {
+  // P0.2: threshold mais alto para rejeitar fotos ruins
+  // Densidade de pele < 12% = não há rosto confiável
+  if (!best || best.score < 0.12) {
     return {
       usedFallback: true,
       box: {

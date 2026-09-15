@@ -36,6 +36,8 @@ const credentialsSchema = z.object({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  // Let Auth.js v5 handle cookies with defaults (trustHost + AUTH_URL determine secure/naming)
+  // Custom cookies config was causing issues with Cloudflare tunnel
   providers: [
     Credentials({
       name: "credentials",
@@ -44,23 +46,42 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Senha", type: "password" },
       },
       async authorize(raw, request) {
+        console.log("[Auth] authorize() called, AUTH_URL:", process.env.AUTH_URL);
+        
         const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) return null;
+        if (!parsed.success) {
+          console.error("[Auth] Invalid credentials schema");
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
         const ip = request ? clientIp(request) : "unknown";
         const email = parsed.data.email.toLowerCase();
+        console.log("[Auth] Login attempt for:", email, "from IP:", ip);
+        
         const rlIp = rateLimit(`login:ip:${ip}`, 30, 15 * 60 * 1000);
         const rlEmail = rateLimit(`login:email:${email}`, 10, 15 * 60 * 1000);
-        if (!rlIp.ok || !rlEmail.ok) return null;
+        
+        if (!rlIp.ok || !rlEmail.ok) {
+          console.warn(`[Auth] Rate limit hit for ${email} / ${ip}`);
+          throw new Error("RATE_LIMIT");
+        }
 
         const user = await prisma.user.findUnique({
           where: { email },
         });
-        if (!user) return null;
+        
+        if (!user) {
+          console.warn("[Auth] User not found:", email);
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
         const ok = await bcrypt.compare(parsed.data.password, user.passwordHash);
-        if (!ok) return null;
+        if (!ok) {
+          console.warn("[Auth] Invalid password for:", email);
+          throw new Error("INVALID_CREDENTIALS");
+        }
 
+        console.log("[Auth] ✓ authorize() successful for:", email, "role:", user.role);
         return {
           id: user.id,
           email: user.email,
@@ -72,8 +93,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
+        console.log("[Auth] jwt() callback with user:", user.email, "trigger:", trigger);
         token.id = user.id!;
         token.role = user.role;
         token.roleCheckedAt = Date.now();
@@ -95,6 +117,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.roleCheckedAt = Date.now();
       }
       return token;
+    },
+    async session({ session, token }) {
+      console.log("[Auth] session() callback, token.id:", token.id);
+      if (session.user) {
+        session.user.id = String(token.id ?? "");
+        session.user.role = (token.role as Role) ?? "USER";
+      }
+      return session;
     },
   },
 });
