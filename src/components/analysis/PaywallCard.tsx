@@ -107,6 +107,9 @@ export function PaywallCard({
     setError(null);
   }
 
+  // Helper to avoid TS narrowing issues with state === "processing" || state === "confirming"
+  const isBusy = ["processing", "confirming"].includes(state);
+
   // S4: Success state
   if (state === "success") {
     return (
@@ -138,15 +141,15 @@ export function PaywallCard({
             type="button"
             className="paywall-card__cta"
             onClick={handleConfirmPayment}
-            disabled={state === "processing" || state === "confirming"}
+            disabled={isBusy}
           >
-            {state === "processing" ? "Processando..." : "Confirmar pagamento"}
+            {isBusy ? "Processando..." : "Confirmar pagamento"}
           </button>
           <button
             type="button"
             className="paywall-card__cta paywall-card__cta--secondary"
             onClick={handleBack}
-            disabled={state === "processing" || state === "confirming"}
+            disabled={isBusy}
           >
             Voltar
           </button>
