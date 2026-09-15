@@ -1,6 +1,7 @@
 # Paywall Specification (Offer Lock)
 
-**Status:** Estrutura criada, aguardando implementação de pagamento
+**Status:** ✅ Backend completo implementado, aguardando integração com Stripe/Pagar.me  
+**Board:** v3 approved (Produto + Figma)
 
 ---
 
@@ -77,43 +78,39 @@ export type AnalysisResultViewProps = {
 
 ---
 
-## Próximos Passos (TODO para implementação completa)
+## Implementação Completa (✅ Backend Done)
 
-### 1. Backend: Entitlements e Payment
-- [ ] Criar modelo `Entitlement` ou flag `hasPaidResult` em `Analysis`
-- [ ] Endpoint de pagamento: `POST /api/analyses/:id/unlock` (Stripe/Pagar.me)
-- [ ] Webhook de confirmação de pagamento (atualiza entitlement)
-- [ ] Endpoint para verificar status: `GET /api/analyses/:id/entitlement`
+### ✅ 1. Backend: Entitlements e Payment
+- [x] Modelo `AnalysisEntitlement` criado no schema Prisma
+- [x] Migração: `20260915015500_add_analysis_entitlement`
+- [x] Endpoint de pagamento: `POST /api/analyses/:id/unlock` (mock, pronto para Stripe/Pagar.me)
+- [x] Endpoint para verificar status: `GET /api/analyses/:id/entitlement`
+- [x] Relação 1:1 com `Analysis` via `entitlement`
 
-### 2. Frontend: Payment Flow
-- [ ] `PaywallCard.onUnlock` → abrir modal de pagamento ou redirecionar para checkout
-- [ ] Integração com Stripe/Pagar.me (client SDK)
-- [ ] Loading states durante processamento de pagamento
-- [ ] Success/error feedback após pagamento
-- [ ] Revalidação automática após sucesso (recarregar página ou refetch props)
+### ✅ 2. Frontend: Payment Flow
+- [x] `PaywallCard` com state machine (initial → confirming → processing → success/error)
+- [x] Board v3 flow: S1 CTAs → S2 confirmation → S4 success
+- [x] Loading states durante processamento de pagamento
+- [x] Success/error feedback após pagamento
+- [x] Revalidação automática após sucesso (router.refresh)
+- [ ] Integração com Stripe/Pagar.me SDK (TODO: substituir mock por pagamento real)
 
-### 3. Server-side: Render Props com Entitlement
-Atualizar a página `/analyses/[id]` para buscar entitlement e passar `isLocked`:
-
+### ✅ 3. Server-side: Render Props com Entitlement
 ```typescript
-// src/app/analyses/[id]/page.tsx
+// src/app/analyses/[id]/page.tsx (implementado)
 const analysis = await prisma.analysis.findUnique({
   where: { id },
-  include: { /* ... */ }
+  include: { entitlement: true, /* ... */ }
 });
 
-const hasPaidResult = await checkEntitlement(analysis.id, session.user.id);
+const lowConfidence = analysis.confidence != null && analysis.confidence < 0.65;
+const hasCompletedPayment = analysis.entitlement?.paymentStatus === "completed";
+const isLocked = !lowConfidence && !hasCompletedPayment;
 
-return (
-  <AnalysisResultView
-    // ...
-    isLocked={!hasPaidResult}
-    // ...
-  />
-);
+return <AnalysisResultView isLocked={isLocked} {...props} />;
 ```
 
-### 4. Variáveis de Ambiente
+### 4. Variáveis de Ambiente (TODO: adicionar quando integrar Stripe)
 ```env
 # Stripe (ou Pagar.me)
 STRIPE_SECRET_KEY=sk_...
@@ -125,10 +122,27 @@ PAID_RESULT_PRICE_CENTS=9700  # R$ 97,00
 ```
 
 ### 5. Testes
-- [ ] Teste unitário: `PaywallCard` renderiza corretamente
+- [ ] Teste unitário: `PaywallCard` renderiza corretamente (estados S1, S2, S4)
 - [ ] Teste integração: `/api/analyses/:id/unlock` com mock de pagamento
 - [ ] Teste E2E: fluxo completo de análise → paywall → pagamento → unlock
 - [ ] QA manual: verificar que sister seasons (confidence <65%) não tem paywall
+
+## Próximos Passos (Payment Integration)
+
+### Integração Stripe/Pagar.me
+1. **Webhook endpoint:** `POST /api/webhooks/stripe` (ou `/api/webhooks/pagar-me`)
+   - Verificar assinatura do webhook
+   - Atualizar `AnalysisEntitlement.paymentStatus` de `pending` → `completed`
+   - Enviar email de confirmação (opcional)
+
+2. **PaywallCard.handleConfirmPayment:**
+   - Criar Stripe Payment Intent ou Pagar.me transaction
+   - Redirecionar para checkout ou abrir modal de pagamento
+   - Aguardar webhook para confirmar pagamento
+
+3. **Ambiente:**
+   - Adicionar variáveis de ambiente do Stripe/Pagar.me
+   - Configurar webhook URL no dashboard do Stripe/Pagar.me
 
 ---
 
@@ -244,7 +258,14 @@ PAID_RESULT_PRICE_CENTS=9700  # R$ 97,00
 
 ## Changelog
 
-**2026-09-15:** Estrutura inicial criada (PaywallCard + isLocked logic)  
+**2026-09-15 (22:00 UTC):** Backend completo implementado + Board v3 flow  
+- Modelo `AnalysisEntitlement` no Prisma com migração
+- Endpoints: `POST /api/analyses/:id/unlock` + `GET /api/analyses/:id/entitlement`
+- Server-side: `isLocked` calculado e passado para `AnalysisResultView`
+- `PaywallCard` com state machine completo (S1 → S2 → S4)
+- CSS atualizado para estados de confirmação e sucesso
+
+**2026-09-15 (19:00 UTC):** Estrutura inicial criada (PaywallCard + isLocked logic)  
 - Componente `PaywallCard` com props e CSS
 - `AnalysisResultView` com lógica condicional `isLocked`
 - Documentação completa de especificação e TODOs
