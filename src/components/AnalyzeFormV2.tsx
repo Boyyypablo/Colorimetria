@@ -114,22 +114,22 @@ export function AnalyzeFormV2() {
       }
       
       if (!result.found) {
-        issues.push("Não encontramos seu rosto — centralize e tente novamente");
+        issues.push("Rosto não detectado — centralize seu rosto e tente novamente");
         reasons.push("face");
       } else {
-        // Check face size and framing (product spec: ~15% min, bottom third check)
+        // Check face size and framing (Figma spec: ~15% min, bottom third check)
         const faceArea = result.box.width * result.box.height;
         const faceCenterY = result.box.y + result.box.height / 2;
         
-        // Face too small (< 15% of image area)
+        // Face too small (< 15% of image area) - too far
         if (faceArea < 0.15) {
-          issues.push("Rosto muito distante — aproxime-se da câmera");
+          issues.push("Rosto muito longe — aproxime-se da câmera");
           reasons.push("face_framing" as RejectReason);
         }
         
-        // Face in bottom third (center Y > 66%)
-        if (faceCenterY > 0.66) {
-          issues.push("Rosto muito baixo — centralize seu rosto na câmera");
+        // Face in bottom third (center Y > 66%) - too low
+        else if (faceCenterY > 0.66) {
+          issues.push("Rosto embaixo demais — centralize na câmera");
           reasons.push("face_framing" as RejectReason);
         }
       }
@@ -258,15 +258,7 @@ export function AnalyzeFormV2() {
     router.push("/dashboard");
   }
 
-  // Render by step
-  if (step === "intake") {
-    return (
-      <IntakeStep
-        onContinue={handleIntakeContinue}
-        onCancel={handleIntakeCancel}
-      />
-    );
-  }
+  // Render by step (intake removed from flow - day-1 Figma wire lock)
 
   if (step === "reject" && photoUrl) {
     return (
@@ -358,9 +350,23 @@ export function AnalyzeFormV2() {
                 <p className="af-dropzone__face-status">A localizar o rosto…</p>
               )}
               {faceStatus === "found" && photoQualityIssues.length === 0 && (
-                <p className="af-dropzone__face-status af-dropzone__face-status--success">
-                  ✓ Rosto detectado
-                </p>
+                <>
+                  <p className="af-dropzone__face-status af-dropzone__face-status--success">
+                    ✓ Rosto detectado
+                  </p>
+                  <p className="af-dropzone__framing-hint">
+                    Vamos usar este enquadramento para análise
+                  </p>
+                </>
+              )}
+              {photoQualityIssues.length > 0 && (
+                <div className="af-dropzone__issues">
+                  {photoQualityIssues.map((issue, i) => (
+                    <p key={i} className="af-dropzone__issue">
+                      {issue}
+                    </p>
+                  ))}
+                </div>
               )}
               <div className="af-dropzone__swap">Trocar foto</div>
             </>

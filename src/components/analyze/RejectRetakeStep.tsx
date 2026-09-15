@@ -19,7 +19,7 @@ type RejectRetakeStepProps = {
 const WARNING_MESSAGES: Record<RejectReason, string> = {
   light: "Iluminação irregular — use luz natural frontal",
   face: "Rosto não detectado — centralize seu rosto e tente novamente",
-  face_framing: "Rosto muito distante ou mal enquadrado — aproxime-se e centralize",
+  face_framing: "Enquadre o rosto no centro, de perto — evite embaixo ou longe",
   blur: "Foto desfocada ou tremida — segure firme o aparelho",
   hdr_filter: "Filtro ou HDR extremo detectado — use foto sem edição",
   resolution: "Resolução muito baixa — use a câmera traseira",
