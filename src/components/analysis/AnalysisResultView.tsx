@@ -9,6 +9,7 @@ import { FeedbackPanel } from "@/components/FeedbackPanel";
 import type { GarmentKind } from "../../../data/wardrobe/garments";
 import { ConfidenceBadge as ConfidenceBadgeFigma } from "@/components/analyze/ConfidenceBadge";
 import { SisterSeasonsCard as SisterSeasonsCardFigma } from "@/components/analyze/SisterSeasonsCard";
+import { PaywallCard } from "@/components/analysis/PaywallCard";
 
 export type RecItem = {
   hex: string;
@@ -43,6 +44,8 @@ export type AnalysisResultViewProps = {
   undertoneLabel: string | null;
   undertoneHint: string | null;
   sisterNote: string | null;
+  /** Offer lock: true = show paywall for confidence + axes + palette */
+  isLocked?: boolean;
   evaluation: {
     why: string;
     axes: Array<{
@@ -213,7 +216,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               cartela. Refaça a selfie ou peça revisão.
             </p>
           )}
-          {(props.undertoneLabel || props.confidencePercent != null) && (
+          {/* Offer lock: FREE = station name only; PAID = confidence + axes + palette */}
+          {!props.isLocked && (props.undertoneLabel || props.confidencePercent != null) && (
             <div className="ar-hero__meta">
               {props.undertoneLabel && (
                 <>
@@ -243,6 +247,17 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                 </>
               )}
             </div>
+          )}
+
+          {/* Offer lock: Paywall card when locked (but NOT for confidence <65% - that stays free) */}
+          {props.isLocked && (props.confidencePercent == null || props.confidencePercent >= 65) && (
+            <PaywallCard
+              analysisId={props.analysisId}
+              onUnlock={(id) => {
+                console.log("[PaywallCard] Unlock requested for analysis:", id);
+                // TODO: Implement payment flow
+              }}
+            />
           )}
 
           {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
@@ -470,7 +485,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </section>
         )} */}
 
-        {props.useColors.length > 0 && (
+        {/* Offer lock: Palette is part of PAID SKU (R$97) */}
+        {!props.isLocked && props.useColors.length > 0 && (
           <section id="paleta" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Paleta de cores</h2>

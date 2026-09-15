@@ -4005,3 +4005,66 @@ a {
   color: var(--lp-slate);
   font-size: 0.8125rem;
 }
+
+/* ================================================================
+   Paywall Card (Offer Lock for Entitlement)
+   ================================================================ */
+.paywall-card {
+  max-width: 32rem;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: linear-gradient(135deg, #fdf6f0 0%, #fef9f5 100%);
+  border: 2px solid var(--lp-terracotta);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(212, 165, 116, 0.15);
+}
+
+.paywall-card__content {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.paywall-card__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--lp-charcoal);
+  margin-bottom: 0.75rem;
+}
+
+.paywall-card__desc {
+  font-size: 1rem;
+  color: var(--lp-slate);
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.paywall-card__price {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--lp-terracotta);
+  margin-bottom: 0.5rem;
+}
+
+.paywall-card__cta {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: var(--lp-terracotta);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.paywall-card__cta:hover:not(:disabled) {
+  background: #c48e67;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(212, 165, 116, 0.3);
+}
+
+.paywall-card__cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
