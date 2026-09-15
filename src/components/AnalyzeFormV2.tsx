@@ -55,7 +55,8 @@ export function AnalyzeFormV2() {
   });
   
   // Photo state
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null); // For preview
+  const [croppedFile, setCroppedFile] = useState<File | null>(null); // For analysis (actual payload)
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [objectPosition, setObjectPosition] = useState("50% 40%");
   const [faceStatus, setFaceStatus] = useState<"idle" | "locating" | "found" | "miss">("idle");
@@ -77,6 +78,66 @@ export function AnalyzeFormV2() {
 
   function handleIntakeCancel() {
     router.push("/dashboard");
+  }
+
+  // Crop image to face bbox with 20-30% padding (analysis payload)
+  async function cropImageToFace(
+    file: File,
+    box: { x: number; y: number; width: number; height: number },
+    imgWidth: number,
+    imgHeight: number,
+  ): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+
+        // 25% padding around face
+        const padding = 0.25;
+        const padX = box.width * padding;
+        const padY = box.height * padding;
+
+        // Calculate crop region (clamped to image bounds)
+        const cropX = Math.max(0, box.x - padX);
+        const cropY = Math.max(0, box.y - padY);
+        const cropRight = Math.min(1, box.x + box.width + padX);
+        const cropBottom = Math.min(1, box.y + box.height + padY);
+        const cropWidth = cropRight - cropX;
+        const cropHeight = cropBottom - cropY;
+
+        // Convert to pixels
+        const sx = Math.floor(cropX * imgWidth);
+        const sy = Math.floor(cropY * imgHeight);
+        const sw = Math.floor(cropWidth * imgWidth);
+        const sh = Math.floor(cropHeight * imgHeight);
+
+        canvas.width = sw;
+        canvas.height = sh;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const cropped = new File([blob], file.name, {
+                type: file.type || "image/jpeg",
+              });
+              resolve(cropped);
+            } else {
+              reject(new Error("Failed to create blob"));
+            }
+          },
+          file.type || "image/jpeg",
+          0.92,
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   // Step 2: Capture
@@ -147,11 +208,23 @@ export function AnalyzeFormV2() {
         frame?.clientHeight ?? 320,
       );
       setObjectPosition(`${pos.x}% ${pos.y}%`);
-      setFaceStatus(result.found ? "found" : "miss");
       
-      // If critical issues, show reject immediately
+      // Hard reject on bad framing - no submit on weak warning
       if (!result.found || reasons.length > 0) {
+        setFaceStatus("miss");
+        setCroppedFile(null);
         setStep("reject");
+        return;
+      }
+      
+      // If framing OK, crop image for analysis (20-30% padding)
+      setFaceStatus("found");
+      try {
+        const cropped = await cropImageToFace(file, result.box, result.imageWidth, result.imageHeight);
+        setCroppedFile(cropped);
+      } catch (err) {
+        console.error("[Crop] Failed to crop:", err);
+        setCroppedFile(file); // Fallback to original if crop fails
       }
     } catch {
       if (gen !== frameGen.current) return;
@@ -190,7 +263,7 @@ export function AnalyzeFormV2() {
   const trimmedIntention = intention.trim();
   const photoQualityOk = faceStatus === "found" && photoQualityIssues.length === 0;
   const canSubmit =
-    Boolean(photoFile) &&
+    Boolean(croppedFile) && // Must have cropped image (analysis payload)
     photoQualityOk &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
@@ -199,12 +272,13 @@ export function AnalyzeFormV2() {
     lgpd;
 
   async function handleSubmit() {
-    if (!canSubmit || !photoFile || !context || !intakeData) return;
+    if (!canSubmit || !croppedFile || !context || !intakeData) return;
     setStep("analyzing");
     setErrorMessage(null);
 
     const fd = new FormData();
-    fd.set("image", photoFile);
+    // Send cropped image (analysis payload), not full frame
+    fd.set("image", croppedFile);
     fd.set("biometricConsent", "true");
     fd.set("photoTipsConfirmed", "true");
     fd.set("intention", trimmedIntention);
@@ -247,6 +321,7 @@ export function AnalyzeFormV2() {
   // Step 4: Reject/Retake
   function handleRetake() {
     setPhotoFile(null);
+    setCroppedFile(null);
     setPhotoUrl(null);
     setFaceStatus("idle");
     setPhotoQualityIssues([]);
