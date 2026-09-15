@@ -1,0 +1,598 @@
+"use client";
+
+/**
+ * Figma flow: Intake → Capture → Analyzing → Reject OR Result
+ * Design QA fixes applied
+ */
+
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { IntakeStep } from "@/components/analyze/IntakeStep";
+import { RejectRetakeStep } from "@/components/analyze/RejectRetakeStep";
+import {
+  ANALYSIS_GOAL_OPTIONS,
+  DEFAULT_ANALYSIS_GOALS,
+  type AnalysisGoalId,
+} from "@/lib/color/goals";
+import { PHOTO_QUALITY_TIPS } from "@/lib/color/photo-tips";
+import { detectFaceInBrowser } from "@/lib/vision/face/browser";
+import { coverFocusPosition } from "@/lib/vision/face/frame";
+import type { RejectReason } from "@/lib/color/reject-reasons";
+
+const CONTEXTS: Array<{
+  id: "casual" | "trabalho" | "noite";
+  label: string;
+  sub: string;
+}> = [
+  { id: "casual", label: "Casual", sub: "Dia a dia, compras, passeios" },
+  { id: "trabalho", label: "Trabalho", sub: "Reuniões, escritório, apresentações" },
+  { id: "noite", label: "Noite", sub: "Eventos, jantares, celebrações" },
+];
+
+const INTENTION_MIN = 8;
+const INTENTION_MAX = 600;
+
+type FlowStep = "intake" | "capture" | "analyzing" | "reject" | "error";
+type IntakeData = {
+  artificialLight: boolean;
+  makeupOnPhoto: boolean;
+  dyedHair: boolean;
+};
+
+export function AnalyzeFormV2() {
+  const router = useRouter();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+  const frameGen = useRef(0);
+  const photoUrlRef = useRef<string | null>(null);
+
+  // Flow state (intake removed as gate - day-1 product lock)
+  const [step, setStep] = useState<FlowStep>("capture");
+  const [intakeData, setIntakeData] = useState<IntakeData | null>({
+    artificialLight: false,
+    makeupOnPhoto: false,
+    dyedHair: false,
+  });
+  
+  // Photo state
+  const [photoFile, setPhotoFile] = useState<File | null>(null); // For preview
+  const [croppedFile, setCroppedFile] = useState<File | null>(null); // For analysis (actual payload)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [objectPosition, setObjectPosition] = useState("50% 40%");
+  const [faceStatus, setFaceStatus] = useState<"idle" | "locating" | "found" | "miss">("idle");
+  const [photoQualityIssues, setPhotoQualityIssues] = useState<string[]>([]);
+  const [rejectReasons, setRejectReasons] = useState<RejectReason[]>([]);
+  
+  // Form state
+  const [intention, setIntention] = useState("");
+  const [goals, setGoals] = useState<AnalysisGoalId[]>([...DEFAULT_ANALYSIS_GOALS]);
+  const [context, setContext] = useState<"casual" | "trabalho" | "noite" | "">("");
+  const [lgpd, setLgpd] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Step 1: Intake (removed as gate for day-1)
+  function handleIntakeContinue(data: IntakeData) {
+    setIntakeData(data);
+    setStep("capture");
+  }
+
+  function handleIntakeCancel() {
+    router.push("/dashboard");
+  }
+
+  // Crop image to face bbox with 20-30% padding (analysis payload)
+  async function cropImageToFace(
+    file: File,
+    box: { x: number; y: number; width: number; height: number },
+    imgWidth: number,
+    imgHeight: number,
+  ): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+
+        // 25% padding around face
+        const padding = 0.25;
+        const padX = box.width * padding;
+        const padY = box.height * padding;
+
+        // Calculate crop region (clamped to image bounds)
+        const cropX = Math.max(0, box.x - padX);
+        const cropY = Math.max(0, box.y - padY);
+        const cropRight = Math.min(1, box.x + box.width + padX);
+        const cropBottom = Math.min(1, box.y + box.height + padY);
+        const cropWidth = cropRight - cropX;
+        const cropHeight = cropBottom - cropY;
+
+        // Convert to pixels
+        const sx = Math.floor(cropX * imgWidth);
+        const sy = Math.floor(cropY * imgHeight);
+        const sw = Math.floor(cropWidth * imgWidth);
+        const sh = Math.floor(cropHeight * imgHeight);
+
+        canvas.width = sw;
+        canvas.height = sh;
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const cropped = new File([blob], file.name, {
+                type: file.type || "image/jpeg",
+              });
+              resolve(cropped);
+            } else {
+              reject(new Error("Failed to create blob"));
+            }
+          },
+          file.type || "image/jpeg",
+          0.92,
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Step 2: Capture
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    const url = URL.createObjectURL(file);
+    photoUrlRef.current = url;
+    setPhotoFile(file);
+    setPhotoUrl(url);
+    setObjectPosition("50% 40%");
+    setFaceStatus("locating");
+    setPhotoQualityIssues([]);
+    setRejectReasons([]);
+
+    const gen = ++frameGen.current;
+    try {
+      const result = await detectFaceInBrowser(file);
+      if (gen !== frameGen.current) return;
+      
+      // Pre-check quality (system-driven, no manual checkboxes)
+      const issues: string[] = [];
+      const reasons: RejectReason[] = [];
+      
+      if (result.imageWidth < 800 || result.imageHeight < 800) {
+        issues.push("Resolução baixa — use a câmera traseira do celular");
+        reasons.push("resolution");
+      }
+      
+      const luma = await estimateLuminance(file);
+      if (luma < 80 || luma > 210) {
+        issues.push(luma < 80 ? "Foto muito escura — use mais luz natural" : "Foto muito clara — evite excesso de luz direta");
+        reasons.push("light");
+      }
+      
+      if (!result.found) {
+        issues.push("Rosto não detectado — centralize seu rosto e tente novamente");
+        reasons.push("face");
+      } else {
+        // Check face size and framing (Figma spec: ~15% min, bottom third check)
+        const faceArea = result.box.width * result.box.height;
+        const faceCenterY = result.box.y + result.box.height / 2;
+        
+        // Face too small (< 15% of image area) - too far
+        if (faceArea < 0.15) {
+          issues.push("Rosto muito longe — aproxime-se da câmera");
+          reasons.push("face_framing" as RejectReason);
+        }
+        
+        // Face in bottom third (center Y > 66%) - too low
+        else if (faceCenterY > 0.66) {
+          issues.push("Rosto embaixo demais — centralize na câmera");
+          reasons.push("face_framing" as RejectReason);
+        }
+      }
+      
+      setPhotoQualityIssues(issues);
+      setRejectReasons(reasons);
+      
+      const frame = dropzoneRef.current;
+      const pos = coverFocusPosition(
+        result.box.x + result.box.width / 2,
+        result.box.y + result.box.height * 0.42,
+        result.imageWidth,
+        result.imageHeight,
+        frame?.clientWidth ?? 640,
+        frame?.clientHeight ?? 320,
+      );
+      setObjectPosition(`${pos.x}% ${pos.y}%`);
+      
+      // Hard reject on bad framing - no submit on weak warning
+      if (!result.found || reasons.length > 0) {
+        setFaceStatus("miss");
+        setCroppedFile(null);
+        setStep("reject");
+        return;
+      }
+      
+      // If framing OK, crop image for analysis (20-30% padding)
+      setFaceStatus("found");
+      try {
+        const cropped = await cropImageToFace(file, result.box, result.imageWidth, result.imageHeight);
+        setCroppedFile(cropped);
+      } catch (err) {
+        console.error("[Crop] Failed to crop:", err);
+        setCroppedFile(file); // Fallback to original if crop fails
+      }
+    } catch {
+      if (gen !== frameGen.current) return;
+      setObjectPosition("50% 40%");
+      setFaceStatus("miss");
+      setPhotoQualityIssues(["Erro ao processar foto"]);
+      setRejectReasons(["other"]);
+      setStep("reject");
+    }
+  }
+
+  async function estimateLuminance(file: File): Promise<number> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 64;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(128);
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+        }
+        resolve(sum / (size * size));
+      };
+      img.onerror = () => resolve(128);
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // Step 3: Analyzing → Submit (no manual checkboxes - quality is system-driven)
+  const trimmedIntention = intention.trim();
+  const photoQualityOk = faceStatus === "found" && photoQualityIssues.length === 0;
+  const canSubmit =
+    Boolean(croppedFile) && // Must have cropped image (analysis payload)
+    photoQualityOk &&
+    trimmedIntention.length >= INTENTION_MIN &&
+    goals.length > 0 &&
+    Boolean(context) &&
+    Boolean(intakeData) &&
+    lgpd;
+
+  async function handleSubmit() {
+    if (!canSubmit || !croppedFile || !context || !intakeData) return;
+    setStep("analyzing");
+    setErrorMessage(null);
+
+    const fd = new FormData();
+    // Send cropped image (analysis payload), not full frame
+    fd.set("image", croppedFile);
+    fd.set("biometricConsent", "true");
+    fd.set("photoTipsConfirmed", "true");
+    fd.set("intention", trimmedIntention);
+    fd.set("makeupOnPhoto", intakeData.makeupOnPhoto ? "true" : "false");
+    fd.set("dyedHair", intakeData.dyedHair ? "true" : "false");
+    fd.set("artificialLight", intakeData.artificialLight ? "true" : "false");
+    for (const g of goals) fd.append("goals", g);
+    fd.set("context", context);
+
+    try {
+      const res = await fetch("/api/analyses", { method: "POST", body: fd });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        // Figma: Handle 400 reject with reasons
+        if (res.status === 400 && data.rejectReasons) {
+          setRejectReasons(data.rejectReasons);
+          setStep("reject");
+          return;
+        }
+        
+        setErrorMessage(data.error || "Não foi possível concluir a análise.");
+        setStep("error");
+        return;
+      }
+      
+      router.push(`/analyses/${data.analysis.id}`);
+    } catch {
+      setErrorMessage("Falha de conexão. Verifique sua internet e tente novamente.");
+      setStep("error");
+    }
+  }
+
+  function toggleGoal(id: AnalysisGoalId) {
+    setGoals((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id],
+    );
+  }
+
+  // Step 4: Reject/Retake
+  function handleRetake() {
+    setPhotoFile(null);
+    setCroppedFile(null);
+    setPhotoUrl(null);
+    setFaceStatus("idle");
+    setPhotoQualityIssues([]);
+    setRejectReasons([]);
+    setStep("capture");
+  }
+
+  function handleRejectCancel() {
+    router.push("/dashboard");
+  }
+
+  // Render by step (intake removed from flow - day-1 Figma wire lock)
+
+  if (step === "reject" && photoUrl) {
+    return (
+      <RejectRetakeStep
+        photoUrl={photoUrl}
+        warnings={rejectReasons}
+        onRetake={handleRetake}
+        onCancel={handleRejectCancel}
+      />
+    );
+  }
+
+  if (step === "analyzing") {
+    return (
+      <div className="af-fullscreen">
+        <div className="af-spinner" aria-hidden />
+        <p className="af-fullscreen__title">Analisando sua foto…</p>
+        <p className="af-fullscreen__text">
+          Aguarde enquanto processamos a colorimetria da sua pele.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === "error") {
+    return (
+      <div className="af-fullscreen">
+        <p className="af-fullscreen__title">Algo deu errado.</p>
+        <p className="af-fullscreen__text">
+          {errorMessage || "Não foi possível enviar sua análise. Tente novamente."}
+        </p>
+        <button
+          type="button"
+          className="af-fullscreen__btn"
+          onClick={() => setStep("capture")}
+        >
+          Tentar novamente
+        </button>
+      </div>
+    );
+  }
+
+  // Step: Capture (main form)
+  return (
+    <div className="af-shell">
+      <div className="af-intro">
+        <p className="af-eyebrow">Análise de cor pessoal</p>
+        <h1 className="af-title">
+          Vamos descobrir
+          <br />
+          <em>sua paleta.</em>
+        </h1>
+        <p className="af-lede">
+          Envie sua foto e conte o que quer trabalhar. Nossa consultora
+          revisará cada detalhe com cuidado.
+        </p>
+      </div>
+
+      {/* 01 — Foto */}
+      <section className="af-section">
+        <div className="af-section__head">
+          <span className="af-section__number">01</span>
+          <div>
+            <h2 className="af-section__title">Sua foto</h2>
+            <p className="af-section__subtitle">A base da análise</p>
+          </div>
+        </div>
+
+        <div
+          ref={dropzoneRef}
+          className={`af-dropzone ${photoUrl ? "af-dropzone--filled" : ""}`}
+          role="button"
+          tabIndex={0}
+          onClick={() => fileRef.current?.click()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") fileRef.current?.click();
+          }}
+        >
+          {photoUrl ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoUrl}
+                alt="Prévia da foto enviada"
+                className="af-dropzone__preview"
+                style={{ objectPosition }}
+              />
+              {faceStatus === "locating" && (
+                <p className="af-dropzone__face-status">A localizar o rosto…</p>
+              )}
+              {faceStatus === "found" && photoQualityIssues.length === 0 && (
+                <>
+                  <p className="af-dropzone__face-status af-dropzone__face-status--success">
+                    ✓ Rosto detectado
+                  </p>
+                  <p className="af-dropzone__framing-hint">
+                    Vamos usar este enquadramento para análise
+                  </p>
+                </>
+              )}
+              {photoQualityIssues.length > 0 && (
+                <div className="af-dropzone__issues">
+                  {photoQualityIssues.map((issue, i) => (
+                    <p key={i} className="af-dropzone__issue">
+                      {issue}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="af-dropzone__swap">Trocar foto</div>
+            </>
+          ) : (
+            <div className="af-dropzone__placeholder">
+              <div className="af-dropzone__icon">◎</div>
+              <p className="af-dropzone__placeholder-title">Enviar foto</p>
+              <p className="af-dropzone__placeholder-hint">
+                Clique para escolher · JPG ou PNG · até 8 MB
+              </p>
+            </div>
+          )}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="af-dropzone__input"
+          onChange={handleFile}
+          aria-label="Foto do rosto"
+        />
+
+        {/* Photo quality tips (informational only - quality gates are system-driven) */}
+        <div className="af-quality-tips">
+          <p className="af-quality-tips__label">Dicas para melhor resultado:</p>
+          <ul className="af-quality-tips__list">
+            {PHOTO_QUALITY_TIPS.map((tip) => (
+              <li key={tip.id} className="af-quality-tips__item">
+                {tip.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* 02 — Intenção */}
+      <section className="af-section">
+        <div className="af-section__head">
+          <span className="af-section__number">02</span>
+          <div>
+            <h2 className="af-section__title">O que você quer trabalhar?</h2>
+            <p className="af-section__subtitle">Em suas palavras</p>
+          </div>
+        </div>
+        <textarea
+          className="af-textarea"
+          value={intention}
+          onChange={(e) => setIntention(e.target.value.slice(0, INTENTION_MAX))}
+          minLength={INTENTION_MIN}
+          maxLength={INTENTION_MAX}
+          placeholder="Ex: Quero entender por que certas cores me deixam apagada..."
+        />
+        <p className="af-textarea__counter">
+          {intention.length} / {INTENTION_MAX}
+        </p>
+      </section>
+
+      {/* 03 — Áreas de foco */}
+      <section className="af-section">
+        <div className="af-section__head">
+          <span className="af-section__number">03</span>
+          <div>
+            <h2 className="af-section__title">Áreas de foco</h2>
+            <p className="af-section__subtitle">Selecione uma ou mais</p>
+          </div>
+        </div>
+        <div className="af-chips">
+          {ANALYSIS_GOAL_OPTIONS.map((opt) => {
+            const active = goals.includes(opt.id);
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                title={opt.hint}
+                onClick={() => toggleGoal(opt.id)}
+                className={`af-chip ${active ? "af-chip--active" : ""}`}
+                aria-pressed={active}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 04 — Contexto */}
+      <section className="af-section">
+        <div className="af-section__head">
+          <span className="af-section__number">04</span>
+          <div>
+            <h2 className="af-section__title">Contexto principal</h2>
+            <p className="af-section__subtitle">Para qual ocasião analisar</p>
+          </div>
+        </div>
+        <div className="af-context-grid">
+          {CONTEXTS.map((ctx) => {
+            const active = context === ctx.id;
+            return (
+              <button
+                key={ctx.id}
+                type="button"
+                onClick={() => setContext(ctx.id)}
+                className={`af-context-card ${active ? "af-context-card--active" : ""}`}
+                aria-pressed={active}
+              >
+                <p className="af-context-card__label">{ctx.label}</p>
+                <p className="af-context-card__sub">{ctx.sub}</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* LGPD */}
+      <div className="af-consent">
+        <label className="af-consent__row">
+          <input
+            type="checkbox"
+            className="af-native-checkbox"
+            checked={lgpd}
+            onChange={(e) => setLgpd(e.target.checked)}
+          />
+          <div>
+            <p className="af-consent__title">
+              Consinto com o uso da minha foto para fins de análise de colorimetria pessoal.
+            </p>
+            <p className="af-consent__hint">
+              Em conformidade com a LGPD (Lei nº 13.709/2018). Você pode solicitar
+              a exclusão a qualquer momento.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      {errorMessage && <p className="af-error-banner">{errorMessage}</p>}
+
+      <div className="af-submit">
+        <button
+          type="button"
+          className="af-submit__btn"
+          disabled={!canSubmit}
+          onClick={handleSubmit}
+        >
+          Enviar para análise
+        </button>
+        {!canSubmit && (
+          <p className="af-submit__hint">
+            Preencha todos os campos obrigatórios para continuar.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

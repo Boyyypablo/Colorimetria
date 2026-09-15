@@ -31,26 +31,71 @@ export function LoginForm({
     e.preventDefault();
     setLoading(true);
     setError(null);
+    
     const fd = new FormData(e.currentTarget);
-    const res = await signIn("credentials", {
-      email: String(fd.get("email")),
-      password: String(fd.get("password")),
-      redirect: false,
-    });
-    setLoading(false);
-    if (res?.error) {
-      setError("E-mail ou senha inválidos.");
-      return;
+    const email = String(fd.get("email"));
+    const password = String(fd.get("password"));
+    
+    console.log("[Login] Attempting signIn with email:", email);
+    
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      
+      console.log("[Login] signIn response:", {
+        ok: res?.ok,
+        error: res?.error,
+        status: res?.status,
+        url: res?.url,
+      });
+      
+      setLoading(false);
+      
+      // Always show error if not ok
+      if (!res?.ok) {
+        let errorMsg = "Erro ao fazer login. Tente novamente.";
+        
+        if (res?.error) {
+          // Map Auth.js error codes to user-friendly messages
+          if (res.error === "CredentialsSignin") {
+            errorMsg = "E-mail ou senha inválidos.";
+          } else if (res.error.includes("RATE_LIMIT")) {
+            errorMsg = "Muitas tentativas. Aguarde 15 minutos e tente novamente.";
+          } else if (res.error.includes("INVALID_CREDENTIALS")) {
+            errorMsg = "E-mail ou senha inválidos.";
+          } else if (res.error === "Configuration") {
+            errorMsg = "Erro de configuração. Verifique AUTH_URL e reinicie o servidor.";
+          } else {
+            errorMsg = `Erro: ${res.error}`;
+          }
+        }
+        
+        console.error("[Login] SignIn failed:", res?.error || "unknown");
+        setError(errorMsg);
+        return;
+      }
+      
+      // Success
+      console.log("[Login] ✓ SignIn successful");
+      const searchParams = new URLSearchParams(window.location.search);
+      const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      setLoading(false);
+      console.error("[Login] Exception:", err);
+      setError("Erro ao tentar fazer login. Tente novamente.");
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8" onSubmit={onSubmit}>
+          <form className="p-6 md:p-8" method="post" onSubmit={onSubmit}>
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <Link href="/" className="mb-1">

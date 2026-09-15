@@ -59,6 +59,8 @@ Opcional: coloque essa URL em `AUTH_URL` no `.env` e reinicie o `npm run dev`.
 
 Requisito: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/) (`winget install Cloudflare.cloudflared`).
 
+**⚠️ Known issue:** Auth.js login via Cloudflare tunnel currently broken (cookies/CSRF). **Workaround:** Visual QA on localhost `http://127.0.0.1:3000` instead. Login works fine on localhost and production deployments.
+
 ## Deploy em VPS (Docker)
 
 Stack completa no servidor: app Next.js + Postgres **só na rede interna** (porta do banco não fica pública).

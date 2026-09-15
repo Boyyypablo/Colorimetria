@@ -40,29 +40,32 @@ const SERVICES = [
     img: LANDING_IMAGES.serviceMakeup,
     alt: "Maquiagem editorial feminina",
   },
-  {
-    num: "03",
-    title: "Plano personalizado",
-    sub: "Harmonia da imagem",
-    desc: "Um plano prático do que suavizar, manter ou valorizar — com recomendações de cores para pele, roupa e maquiagem.",
-    img: LANDING_IMAGES.serviceVisual,
-    alt: "Styling e paisagismo visual",
-  },
-  {
-    num: "04",
-    title: "Moda",
-    sub: "Guarda-roupa intencional",
-    desc: "Peças e tons que conversam entre si, refletem sua personalidade e vestem bem o seu contraste real — filtrados para o seu contexto.",
-    img: LANDING_IMAGES.serviceFashion,
-    alt: "Guarda-roupa colorido e organizado",
-  },
+  // DAY-1: Removed consultant plan service (single SKU: Avaliação only)
+  // {
+  //   num: "03",
+  //   title: "Plano personalizado",
+  //   sub: "Harmonia da imagem",
+  //   desc: "Um plano prático do que suavizar, manter ou valorizar — com recomendações de cores para pele, roupa e maquiagem.",
+  //   img: LANDING_IMAGES.serviceVisual,
+  //   alt: "Styling e paisagismo visual",
+  // },
+  // DAY-1: Removed wardrobe service (single SKU: Avaliação only)
+  // {
+  //   num: "04",
+  //   title: "Moda",
+  //   sub: "Guarda-roupa intencional",
+  //   desc: "Peças e tons que conversam entre si, refletem sua personalidade e vestem bem o seu contraste real — filtrados para o seu contexto.",
+  //   img: LANDING_IMAGES.serviceFashion,
+  //   alt: "Guarda-roupa colorido e organizado",
+  // },
 ] as const;
 
 const STEPS = [
   {
     n: "01",
     title: "Sua intenção",
-    desc: "Conte o que quer trabalhar — olhar, olheiras, guarda-roupa — para a consultora priorizar o que importa agora.",
+    // DAY-1: Simplified description (single SKU: Avaliação only)
+    desc: "Conte o que quer trabalhar — harmonia, maquiagem, cabelo — para priorizar o que importa agora.",
   },
   {
     n: "02",
@@ -257,7 +260,8 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
           &ldquo;Colorimetria não é sobre seguir tendências — é sobre encontrar
           a harmonia entre quem você é e como o mundo te vê.&rdquo;
         </blockquote>
-        <p className="lp-manifesto__by">Consultora de imagem</p>
+        {/* DAY-1: Simplified attribution (single SKU: Avaliação only) */}
+        <p className="lp-manifesto__by">Análise de cor pessoal</p>
       </section>
 
       {/* Services */}
@@ -337,14 +341,14 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               <em className="text-[var(--lp-terracotta)]">Consultora</em>
             </h2>
             <p className="lp-prose mb-6">
-              Análise sazonal por imagem, recomendações e simulação visual —
-              na interseção entre a ciência das cores e a arte de se apresentar.
-              Cada pessoa tem uma linguagem visual única esperando para ser
-              descoberta.
+              Análise sazonal por imagem — na interseção entre a ciência das 
+              cores e a arte de se apresentar. Cada pessoa tem uma linguagem 
+              visual única esperando para ser descoberta.
             </p>
+            {/* DAY-1: Simplified copy (single SKU: Avaliação only) */}
             <p className="lp-prose mb-10">
-              Envie uma foto, conte o que quer trabalhar e receba um plano
-              personalizado: cartela, cores e mudanças práticas — sem pressa e
+              Envie uma foto, conte o que quer trabalhar e receba sua avaliação: 
+              cartela de cores, subtom e orientações práticas — sem pressa e 
               sem padrões impostos.
             </p>
             <div className="lp-stats">

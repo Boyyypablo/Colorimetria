@@ -39,25 +39,31 @@ export function AnalyzeForm() {
   const [faceStatus, setFaceStatus] = useState<"idle" | "locating" | "found" | "miss">(
     "idle",
   );
+  const [photoQualityIssues, setPhotoQualityIssues] = useState<string[]>([]);
   const [checklist, setChecklist] = useState<Record<string, boolean>>({});
   const [intention, setIntention] = useState("");
   const [goals, setGoals] = useState<AnalysisGoalId[]>([...DEFAULT_ANALYSIS_GOALS]);
   const [context, setContext] = useState<"casual" | "trabalho" | "noite" | "">("");
   const [lgpd, setLgpd] = useState(false);
-  const [makeupOnPhoto, setMakeupOnPhoto] = useState(false);
-  const [dyedHair, setDyedHair] = useState(false);
-  const [artificialLight, setArtificialLight] = useState(false);
+  const [makeupOnPhoto, setMakeupOnPhoto] = useState<boolean | null>(null);
+  const [dyedHair, setDyedHair] = useState<boolean | null>(null);
+  const [artificialLight, setArtificialLight] = useState<boolean | null>(null);
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const allTipsConfirmed = PHOTO_QUALITY_TIPS.every((tip) => checklist[tip.id]);
   const trimmedIntention = intention.trim();
+  // P0.1 + P0.4: Validação rigorosa de qualidade e intake obrigatório
+  const photoQualityOk = faceStatus === "found" && photoQualityIssues.length === 0;
+  const intakeComplete = makeupOnPhoto !== null && dyedHair !== null && artificialLight !== null;
   const canSubmit =
     Boolean(photoFile) &&
+    photoQualityOk &&
     allTipsConfirmed &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
     Boolean(context) &&
+    intakeComplete &&
     lgpd;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -70,11 +76,31 @@ export function AnalyzeForm() {
     setPhotoUrl(url);
     setObjectPosition("50% 40%");
     setFaceStatus("locating");
+    setPhotoQualityIssues([]);
 
     const gen = ++frameGen.current;
     try {
       const result = await detectFaceInBrowser(file);
       if (gen !== frameGen.current) return;
+      
+      // P0.1: Pre-check de qualidade
+      const issues: string[] = [];
+      
+      // Check resolução
+      if (result.imageWidth < 800 || result.imageHeight < 800) {
+        issues.push("Resolução baixa — prefira fotos com pelo menos 800px");
+      }
+      
+      // Check luminosidade (basic estimate via canvas)
+      const luma = await estimateLuminance(file);
+      if (luma < 80) {
+        issues.push("Foto muito escura — aumente a iluminação");
+      } else if (luma > 210) {
+        issues.push("Foto muito clara — reduza a exposição");
+      }
+      
+      setPhotoQualityIssues(issues);
+      
       const frame = dropzoneRef.current;
       const pos = coverFocusPosition(
         result.box.x + result.box.width / 2,
@@ -90,7 +116,31 @@ export function AnalyzeForm() {
       if (gen !== frameGen.current) return;
       setObjectPosition("50% 40%");
       setFaceStatus("miss");
+      setPhotoQualityIssues(["Erro ao processar foto"]);
     }
+  }
+
+  async function estimateLuminance(file: File): Promise<number> {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const size = 64;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(128);
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+        }
+        resolve(sum / (size * size));
+      };
+      img.onerror = () => resolve(128);
+      img.src = URL.createObjectURL(file);
+    });
   }
 
   function toggleGoal(id: AnalysisGoalId) {
@@ -109,9 +159,10 @@ export function AnalyzeForm() {
     fd.set("biometricConsent", "true");
     fd.set("photoTipsConfirmed", "true");
     fd.set("intention", trimmedIntention);
-    fd.set("makeupOnPhoto", makeupOnPhoto ? "true" : "false");
-    fd.set("dyedHair", dyedHair ? "true" : "false");
-    fd.set("artificialLight", artificialLight ? "true" : "false");
+    // P0.4: Intake agora é obrigatório e sempre boolean
+    fd.set("makeupOnPhoto", makeupOnPhoto === true ? "true" : "false");
+    fd.set("dyedHair", dyedHair === true ? "true" : "false");
+    fd.set("artificialLight", artificialLight === true ? "true" : "false");
     for (const g of goals) fd.append("goals", g);
     fd.set("context", context);
 
@@ -201,8 +252,20 @@ export function AnalyzeForm() {
                 <p className="af-dropzone__face-status">A localizar o rosto…</p>
               ) : null}
               {faceStatus === "miss" ? (
-                <p className="af-dropzone__face-status">
-                  Não localizamos o rosto — a leitura fica provisória até uma selfie frontal.
+                <p className="af-dropzone__face-status af-dropzone__face-status--error">
+                  ❌ Rosto não detectado — centralize seu rosto e tente outra foto.
+                </p>
+              ) : null}
+              {faceStatus === "found" && photoQualityIssues.length > 0 ? (
+                <div className="af-dropzone__quality-issues">
+                  {photoQualityIssues.map((issue, i) => (
+                    <p key={i} className="af-dropzone__quality-issue">⚠️ {issue}</p>
+                  ))}
+                </div>
+              ) : null}
+              {faceStatus === "found" && photoQualityIssues.length === 0 ? (
+                <p className="af-dropzone__face-status af-dropzone__face-status--success">
+                  ✓ Rosto detectado
                 </p>
               ) : null}
               <div className="af-dropzone__swap">Trocar foto</div>
@@ -243,39 +306,94 @@ export function AnalyzeForm() {
           ))}
         </div>
 
-        <div className="af-checklist">
-          <p className="af-checklist__label">O que pode enviesar a medição</p>
-          <label className="af-checklist__item">
-            <input
-              type="checkbox"
-              className="af-native-checkbox"
-              checked={makeupOnPhoto}
-              onChange={(e) => setMakeupOnPhoto(e.target.checked)}
-            />
-            <span className="af-checklist__text">Estou maquiada nesta foto</span>
-          </label>
-          <label className="af-checklist__item">
-            <input
-              type="checkbox"
-              className="af-native-checkbox"
-              checked={dyedHair}
-              onChange={(e) => setDyedHair(e.target.checked)}
-            />
-            <span className="af-checklist__text">
-              O cabelo está tingido (não é a cor da raiz)
-            </span>
-          </label>
-          <label className="af-checklist__item">
-            <input
-              type="checkbox"
-              className="af-native-checkbox"
-              checked={artificialLight}
-              onChange={(e) => setArtificialLight(e.target.checked)}
-            />
-            <span className="af-checklist__text">
-              A luz é artificial (lâmpada, não janela)
-            </span>
-          </label>
+        {/* P0.4: Intake obrigatório - radio buttons sim/não */}
+        <div className="af-intake-section">
+          <p className="af-intake__label">Informações sobre a foto (obrigatório)</p>
+          <p className="af-intake__hint">Isso ajuda a calibrar a confiança da medição</p>
+          
+          <div className="af-intake__question">
+            <p className="af-intake__question-text">Você está maquiada nesta foto?</p>
+            <div className="af-intake__options">
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="makeupOnPhoto"
+                  value="true"
+                  checked={makeupOnPhoto === true}
+                  onChange={() => setMakeupOnPhoto(true)}
+                />
+                <span>Sim</span>
+              </label>
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="makeupOnPhoto"
+                  value="false"
+                  checked={makeupOnPhoto === false}
+                  onChange={() => setMakeupOnPhoto(false)}
+                />
+                <span>Não</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="af-intake__question">
+            <p className="af-intake__question-text">O cabelo está tingido? (não é a cor natural da raiz)</p>
+            <div className="af-intake__options">
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="dyedHair"
+                  value="true"
+                  checked={dyedHair === true}
+                  onChange={() => setDyedHair(true)}
+                />
+                <span>Sim</span>
+              </label>
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="dyedHair"
+                  value="false"
+                  checked={dyedHair === false}
+                  onChange={() => setDyedHair(false)}
+                />
+                <span>Não</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="af-intake__question">
+            <p className="af-intake__question-text">A iluminação é artificial? (lâmpada, não luz natural)</p>
+            <div className="af-intake__options">
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="artificialLight"
+                  value="true"
+                  checked={artificialLight === true}
+                  onChange={() => setArtificialLight(true)}
+                />
+                <span>Sim</span>
+              </label>
+              <label className="af-intake__option">
+                <input
+                  type="radio"
+                  name="artificialLight"
+                  value="false"
+                  checked={artificialLight === false}
+                  onChange={() => setArtificialLight(false)}
+                />
+                <span>Não</span>
+              </label>
+            </div>
+          </div>
+          
+          {(makeupOnPhoto === true || artificialLight === true) && (
+            <p className="af-intake__warning">
+              ⚠️ {makeupOnPhoto && "Maquiagem"}{makeupOnPhoto && artificialLight && " e "}{artificialLight && "luz artificial"} podem distorcer o subtom. A confiança da análise será menor.
+            </p>
+          )}
         </div>
       </AfSection>
 

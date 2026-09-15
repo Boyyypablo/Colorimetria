@@ -3,9 +3,14 @@
 import { useState } from "react";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
-import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
-import { GarmentPreview } from "@/components/analysis/GarmentPreview";
+// DAY-1: Removed consultant imports (single SKU: Avaliação only)
+// import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
+// import { GarmentPreview } from "@/components/analysis/GarmentPreview";
 import type { GarmentKind } from "../../../data/wardrobe/garments";
+import { ConfidenceBadge as ConfidenceBadgeFigma } from "@/components/analyze/ConfidenceBadge";
+import { SisterSeasonsCard as SisterSeasonsCardFigma } from "@/components/analyze/SisterSeasonsCard";
+import { PaywallCard } from "@/components/analysis/PaywallCard";
+import { FrostedConfidenceBlock, FrostedPalette } from "@/components/analysis/FrostedPaidContent";
 
 export type RecItem = {
   hex: string;
@@ -40,6 +45,8 @@ export type AnalysisResultViewProps = {
   undertoneLabel: string | null;
   undertoneHint: string | null;
   sisterNote: string | null;
+  /** Offer lock: true = show paywall for confidence + axes + palette */
+  isLocked?: boolean;
   evaluation: {
     why: string;
     axes: Array<{
@@ -57,6 +64,15 @@ export type AnalysisResultViewProps = {
   confidenceBand: "baixa" | "moderada" | "alta" | null;
   confidenceNote: string | null;
   lowConfidenceWarning: boolean;
+  /** P0.3: Breakdown por eixo */
+  confidenceBreakdown?: {
+    temperature: number;
+    value: number;
+    chroma: number;
+    contrast: number;
+  } | null;
+  /** P0.5: Estações irmãs (quando confiança < 65%) */
+  sisterSeasons?: Array<{ id: string; namePt: string }> | null;
   intention: string | null;
   goalLabels: string[];
   contextLabel: string | null;
@@ -188,7 +204,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               />
             </div>
             <div className="ar-hero__intro">
-              <p className="ar-hero__eyebrow">Sua estação de cor</p>
+              <p className="ar-hero__eyebrow">Sua estação</p>
               <h1 className="ar-hero__season">
                 {props.seasonName || "Em processamento"}
               </h1>
@@ -201,7 +217,24 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               cartela. Refaça a selfie ou peça revisão.
             </p>
           )}
-          {(props.undertoneLabel || props.confidencePercent != null) && (
+
+          {/* Offer UI v3.1: FREE = station name + blurb (2-4 sentences about the season type) */}
+          {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
+
+          {/* Offer UI v3.1: Reserved slot for future AI narration video */}
+          <div className="ar-hero__video-slot">
+            <button
+              type="button"
+              className="ar-hero__video-cta"
+              disabled
+              title="Em breve: vídeo explicativo sobre sua estação"
+            >
+              Assistir explicação
+            </button>
+          </div>
+
+          {/* Offer lock: PAID = confidence + axes + palette */}
+          {!props.isLocked && (props.undertoneLabel || props.confidencePercent != null) && (
             <div className="ar-hero__meta">
               {props.undertoneLabel && (
                 <>
@@ -210,18 +243,47 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                 </>
               )}
               {props.confidencePercent != null && (
-                <span className="ar-hero__meta-note">
-                  Certeza da medição: {props.confidencePercent}%
-                  {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
-                  {props.confidenceNote ? ` — ${props.confidenceNote}` : ""}
-                </span>
+                <>
+                  {/* Figma: Overall confidence badge */}
+                  <div className="ar-hero__confidence">
+                    <ConfidenceBadgeFigma percent={props.confidencePercent} />
+                  </div>
+                  
+                  {/* Figma: 4 axes — hide row if missing in API */}
+                  {props.confidenceBreakdown && (
+                    <div className="ar-confidence-axes">
+                      <p className="ar-confidence-axes__title">Confiança por eixo</p>
+                      <div className="ar-confidence-axes__list">
+                        <AxisBar label="Temperatura" value={props.confidenceBreakdown.temperature} />
+                        <AxisBar label="Valor" value={props.confidenceBreakdown.value} />
+                        <AxisBar label="Croma" value={props.confidenceBreakdown.chroma} />
+                        <AxisBar label="Contraste" value={props.confidenceBreakdown.contrast} />
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
+          {/* Offer UI v3.1: Frosted (opaque) placeholders when locked - no readable % */}
+          {props.isLocked && (props.confidencePercent == null || props.confidencePercent >= 65) && (
+            <>
+              <FrostedConfidenceBlock />
+              <PaywallCard analysisId={props.analysisId} />
+            </>
+          )}
+
           {props.undertoneHint && <p className="ar-hero__desc">{props.undertoneHint}</p>}
           {props.sisterNote && <p className="ar-hero__desc">{props.sisterNote}</p>}
+
+          {/* Figma: Confidence <65% → Sister seasons card */}
+          {props.confidencePercent != null && props.confidencePercent < 65 && (
+            <SisterSeasonsCardFigma
+              sisters={props.sisterSeasons || []}
+              onRetake={() => window.location.href = "/analyze"}
+            />
+          )}
           {props.evaluation && (
             <div id="leitura" className="ar-why">
               <p className="ar-why__label">Por que esta cartela</p>
@@ -298,11 +360,12 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
           )}
 
-          {props.canRequestReview && (
+          {/* DAY-1: Removed consultant request CTA (single SKU: Avaliação only) */}
+          {/* {props.canRequestReview && (
             <div style={{ marginTop: "1.5rem" }}>
               <RequestReviewButton analysisId={props.analysisId} />
             </div>
-          )}
+          )} */}
         </div>
       </section>
 
@@ -351,7 +414,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </div>
         )}
 
-        {props.plan && (
+        {/* DAY-1: Removed consultant plan section (single SKU: Avaliação only) */}
+        {/* {props.plan && (
           <section id="plano" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Plano personalizado</h2>
@@ -432,9 +496,13 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               </div>
             )}
           </section>
-        )}
+        )} */}
 
-        {props.useColors.length > 0 && (
+        {/* Offer UI v3.1: Frosted palette when locked */}
+        {props.isLocked && <FrostedPalette />}
+
+        {/* Offer lock: Palette is part of PAID SKU (R$97) */}
+        {!props.isLocked && props.useColors.length > 0 && (
           <section id="paleta" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Paleta de cores</h2>
@@ -507,7 +575,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </section>
         )}
 
-        {props.lookGroups.length > 0 && (
+        {/* DAY-1: Removed looks/wardrobe section (single SKU: Avaliação only) */}
+        {/* {props.lookGroups.length > 0 && (
           <section id="looks" className="ar-section">
             <div className="ar-section__head">
               <h2 className="ar-section__title">Looks sugeridos</h2>
@@ -578,7 +647,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               })}
             </div>
           </section>
-        )}
+        )} */}
 
         {props.skinCorrection && (
           <section id="cuidados" className="ar-section">
@@ -672,15 +741,41 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
           )}
 
-          {props.staffReview && props.statusKey !== "APPROVED" && (
+          {/* DAY-1: Removed staff consultant review form (single SKU: Avaliação only) */}
+          {/* {props.staffReview && props.statusKey !== "APPROVED" && (
             <ConsultantReviewForm
               analysisId={props.analysisId}
               seasons={props.staffReview.seasons}
               currentSeasonId={props.staffReview.currentSeasonId}
             />
-          )}
+          )} */}
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Figma: Axis bar — API label + % + bar
+ * Missing axis in API → hide row (handled by parent)
+ */
+function AxisBar({ label, value }: { label: string; value: number }) {
+  const percent = Math.round(value * 100);
+  // Figma bands: <65 low, 65-79 moderate, ≥80 high
+  const band = percent < 65 ? "low" : percent < 80 ? "moderate" : "high";
+  
+  return (
+    <div className="ar-axis-bar">
+      <div className="ar-axis-bar__header">
+        <span className="ar-axis-bar__label">{label}</span>
+        <span className="ar-axis-bar__value">{percent}%</span>
+      </div>
+      <div className="ar-axis-bar__track">
+        <div
+          className={`ar-axis-bar__fill ar-axis-bar__fill--${band}`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+    </div>
   );
 }

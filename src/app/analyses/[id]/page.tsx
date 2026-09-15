@@ -66,6 +66,7 @@ export default async function AnalysisPage({ params }: Params) {
     include: {
       season: true,
       overrideSeason: true,
+      entitlement: true, // Board v3: Check payment status
       reviews: {
         orderBy: { createdAt: "desc" },
         take: 1,
@@ -195,6 +196,25 @@ export default async function AnalysisPage({ params }: Params) {
   const confidenceUi =
     analysis.confidence != null ? formatConfidence(analysis.confidence) : null;
 
+  // P0.3: Breakdown de confiança por eixo
+  const confidenceBreakdown = analysis.confidenceBreakdown as {
+    byAxis: {
+      temperature: number;
+      value: number;
+      chroma: number;
+      contrast: number;
+    };
+  } | null;
+
+  // P0.5: Estações irmãs
+  const sisterSeasonIds = (rec as { sisterSeasons?: string[] } | null)?.sisterSeasons;
+  const sisterSeasons = sisterSeasonIds
+    ? await prisma.seasonPalette.findMany({
+        where: { id: { in: sisterSeasonIds } },
+        select: { id: true, namePt: true },
+      })
+    : null;
+
   const vto = getVtoRuntimeInfo();
 
   const useColors = rec?.useColors || [];
@@ -274,10 +294,12 @@ export default async function AnalysisPage({ params }: Params) {
 
   const navItems = [
     evaluation ? { href: "#leitura", label: "Leitura" } : null,
-    consultantPlan ? { href: "#plano", label: "Plano" } : null,
+    // DAY-1: Removed consultant plan nav (single SKU: Avaliação only)
+    // consultantPlan ? { href: "#plano", label: "Plano" } : null,
     useColors.length > 0 ? { href: "#paleta", label: "Paleta" } : null,
     coachingBlocks.length > 0 ? { href: "#orientacoes", label: "Orientações" } : null,
-    lookGroups.length > 0 ? { href: "#looks", label: "Looks" } : null,
+    // DAY-1: Removed looks nav (single SKU: Avaliação only)
+    // lookGroups.length > 0 ? { href: "#looks", label: "Looks" } : null,
     skinCorrection ? { href: "#cuidados", label: "Cuidados" } : null,
     feedbackAvailable ? { href: "#feedback", label: "Feedback" } : null,
     simulationAvailable ? { href: "#simulacao", label: "Simulação" } : null,
@@ -305,6 +327,14 @@ export default async function AnalysisPage({ params }: Params) {
 
   const statusStyle = STATUS_STYLE[analysis.status] ?? STATUS_STYLE.PENDING;
 
+  // Board v3: Calculate isLocked (paywall for confidence + axes + palette)
+  // FREE: station name only (never gate the name after successful analysis)
+  // PAID: confidence band + 4 axes + basic palette (R$97 provisional)
+  // No paywall on reject or confidence <65%
+  const lowConfidence = analysis.confidence != null && analysis.confidence < 0.65;
+  const hasCompletedPayment = analysis.entitlement?.paymentStatus === "completed";
+  const isLocked = !lowConfidence && !hasCompletedPayment;
+
   const viewProps: AnalysisResultViewProps = {
     analysisId: analysis.id,
     photoUrl: `/api/uploads/${analysis.imagePath}`,
@@ -314,6 +344,7 @@ export default async function AnalysisPage({ params }: Params) {
     undertoneLabel: analysis.undertoneLabel || null,
     undertoneHint: rec?.undertoneHint || null,
     sisterNote: coaching?.sisterNote || rec?.coaching?.sisterNote || null,
+    isLocked, // Board v3: Paywall entitlement
     evaluation: evaluation
       ? {
           why: evaluation.why,
@@ -327,6 +358,8 @@ export default async function AnalysisPage({ params }: Params) {
     confidenceBand: confidenceUi?.band ?? null,
     confidenceNote: confidenceUi?.note ?? null,
     lowConfidenceWarning: confidenceUi?.band === "baixa",
+    confidenceBreakdown: confidenceBreakdown?.byAxis ?? null,
+    sisterSeasons: sisterSeasons ?? null,
     intention: analysis.intention || null,
     goalLabels,
     contextLabel: contextLabel[analysis.context] || analysis.context || null,
