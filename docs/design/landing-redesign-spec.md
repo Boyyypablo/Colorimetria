@@ -1,13 +1,13 @@
-# Landing Redesign Specification
+# Landing + Analyzing Handoff Specification
 
-**Status:** Aprovado para implementação futura  
-**Priority:** Após face-crop e paywall work estarem completos
+**Status:** ✅ Locked by Produto/Figma  
+**Priority:** Implementar quando houver capacidade; face-crop + entitlement permanecem prioridade se ainda abertos
 
 ---
 
 ## Resumo
 
-Redesign da seção "Serviços" da landing page com foco em Colorimetria como hero único + teaser para Maquiagem.
+Handoff completo para Landing (seção Serviços) e Analyzing screen com copy/flow aprovados.
 
 ---
 
@@ -39,13 +39,15 @@ Redesign da seção "Serviços" da landing page com foco em Colorimetria como he
   - Flow: Foto → Análise → Resultado → Unlock (se aplicável)
   - Visual: ícones ou mini-cards para cada step
 
-#### 3. Maquiagem - Em Breve Teaser
+#### 3. Visagismo - Em Breve Teaser
 - **Layout:** Teaser card ou banner (não full hero)
 - **Conteúdo:**
   - Badge/label: "Em breve"
-  - Título: "Maquiagem"
+  - Título: "Visagismo"
   - Descrição curta: o que virá
   - **SEM CTA** (apenas teaser informativo)
+  
+**Nota:** Copy locked: "Visagismo" (não "Maquiagem")
 
 ### Removido Completamente
 - ❌ Grid 2-card quebrado
@@ -85,17 +87,17 @@ Hero Principal
 ├─ Value Prop
 └─ CTA inicial
 
-Serviços (REDESIGN)
+Serviços (REDESIGN - LOCKED)
 ├─ Colorimetria Hero (full-width)
 │  ├─ Título + descrição
-│  ├─ CTA primário
+│  ├─ CTA primário: "Começar análise" ou similar
 │  └─ [Opcional] Light human signature
 ├─ Como Funciona (aside)
 │  └─ 3–4 steps do processo
-└─ Maquiagem - Em Breve (teaser)
+└─ Visagismo - Em Breve (teaser)
    ├─ Badge "Em breve"
-   ├─ Título + descrição
-   └─ SEM CTA
+   ├─ Título: "Visagismo"
+   └─ SEM CTA (apenas teaser informativo)
 
 [Outras seções da landing permanecem]
 ```
@@ -110,8 +112,18 @@ Serviços (REDESIGN)
 3. **THEN:** Landing redesign (serviços section)
 
 ### Arquivos a Modificar
+
+**Landing:**
 - `/workspace/src/components/landing/LandingHome.tsx`
 - `/workspace/src/app/globals.css` (seção landing)
+
+**Analyzing Screen:**
+- `/workspace/src/components/AnalyzeFormV2.tsx` (step "analyzing")
+- `/workspace/src/app/globals.css` (analyzing styles)
+
+**Paywall CTAs:**
+- `/workspace/src/components/analysis/PaywallCard.tsx` (já usa "Liberar resultado completo" ✅)
+- Verificar outros CTAs de unlock usam verb "Liberar"
 
 ### Day-1 Lock Context
 Landing já tem Day-1 product lock aplicado:
@@ -125,10 +137,16 @@ Redesign deve:
 - Adicionar teaser Maquiagem sem CTA
 
 ### Design Assets Necessários
+
+**Landing:**
 - [ ] Ilustração/foto hero para Colorimetria (full-width)
-- [ ] Ícones para "Como funciona" steps
-- [ ] Badge "Em breve" component/styling
+- [ ] Ícones para "Como funciona" steps (3–4 steps)
+- [ ] Badge "Em breve" component/styling para Visagismo teaser
 - [ ] [Opcional] Light human signature visual asset
+
+**Analyzing:**
+- [ ] Spinner ou progress indicator
+- [ ] [Opcional] Step icons para Enquadramento/Pele/Estação
 
 ---
 
@@ -140,11 +158,58 @@ Redesign deve:
 
 ---
 
+---
+
+## Analyzing Screen Specification
+
+**Status:** ✅ Locked by Produto/Figma
+
+### Copy Aprovado
+
+#### Header Copy
+- **Main:** `Lendo sua imagem…`
+- **Subtitle:** `Protocolo profissional · [Nome do usuário]`
+
+Exemplo: `Protocolo profissional · Maria`
+
+#### Loading Steps (sequential)
+1. `Enquadramento` - validando face crop/framing
+2. `Pele` - analisando skin tone/features
+3. `Estação` - determinando season
+
+**Apresentação:** Steps aparecem sequencialmente conforme análise progride
+
+### CTA Verb - Paywall
+- **Locked copy:** `Liberar` (não "Desbloquear" ou "Ver")
+- Exemplos:
+  - `Liberar resultado completo`
+  - `Liberar avaliação`
+  - `Liberar paleta`
+
+### Layout
+- Progress indicator (spinner ou similar)
+- Copy centralizado
+- Steps lista vertical ou inline (design discretion)
+
+### Estado Atual
+- Arquivo: `/workspace/src/components/AnalyzeFormV2.tsx`
+- Step atual: `step === "analyzing"` renderiza loading básico
+- TODO: Atualizar copy para locked version
+
+---
+
 ## Changelog
+
+**2026-09-15 (02:12 UTC):** Locked handoff completo (Produto/Figma)  
+- Landing: Colorimetria hero + Como funciona aside
+- Landing: Visagismo Em breve (sem CTA, não "Maquiagem")
+- Analyzing: copy `Lendo sua imagem…` / `Protocolo profissional · [Nome]`
+- Analyzing: steps Enquadramento → Pele → Estação
+- Paywall CTA verb: `Liberar` (locked)
 
 **2026-09-15 (02:10 UTC):** Spec criada baseada em aprovação de redesign  
 - Single Colorimetria hero (full-width) + aside "Como funciona"
-- Maquiagem = Em breve teaser (sem CTA)
+- Em breve teaser (sem CTA)
 - No 2-card broken grid
 - Optional light human signature per product tone guide
 - Face-crop e paywall stay higher priority
