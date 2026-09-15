@@ -46,9 +46,13 @@ export function AnalyzeFormV2() {
   const frameGen = useRef(0);
   const photoUrlRef = useRef<string | null>(null);
 
-  // Flow state
-  const [step, setStep] = useState<FlowStep>("intake");
-  const [intakeData, setIntakeData] = useState<IntakeData | null>(null);
+  // Flow state (intake removed as gate - day-1 product lock)
+  const [step, setStep] = useState<FlowStep>("capture");
+  const [intakeData, setIntakeData] = useState<IntakeData | null>({
+    artificialLight: false,
+    makeupOnPhoto: false,
+    dyedHair: false,
+  });
   
   // Photo state
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -65,7 +69,7 @@ export function AnalyzeFormV2() {
   const [lgpd, setLgpd] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Step 1: Intake
+  // Step 1: Intake (removed as gate for day-1)
   function handleIntakeContinue(data: IntakeData) {
     setIntakeData(data);
     setStep("capture");
@@ -99,40 +103,34 @@ export function AnalyzeFormV2() {
       const reasons: RejectReason[] = [];
       
       if (result.imageWidth < 800 || result.imageHeight < 800) {
-        issues.push("Resolução baixa — prefira fotos com pelo menos 800px");
+        issues.push("Resolução baixa — use a câmera traseira do celular");
         reasons.push("resolution");
       }
       
       const luma = await estimateLuminance(file);
       if (luma < 80 || luma > 210) {
-        issues.push(luma < 80 ? "Foto muito escura" : "Foto muito clara");
+        issues.push(luma < 80 ? "Foto muito escura — use mais luz natural" : "Foto muito clara — evite excesso de luz direta");
         reasons.push("light");
       }
       
       if (!result.found) {
-        issues.push("Rosto não detectado");
+        issues.push("Não encontramos seu rosto — centralize e tente novamente");
         reasons.push("face");
       } else {
-        // Check face size and position
+        // Check face size and framing (product spec: ~15% min, bottom third check)
         const faceArea = result.box.width * result.box.height;
         const faceCenterY = result.box.y + result.box.height / 2;
         
-        // Face too small (less than 8% of image area)
-        if (faceArea < 0.08) {
-          issues.push("Rosto muito pequeno — aproxime-se da câmera");
-          reasons.push("face");
+        // Face too small (< 15% of image area)
+        if (faceArea < 0.15) {
+          issues.push("Rosto muito distante — aproxime-se da câmera");
+          reasons.push("face_framing" as RejectReason);
         }
         
-        // Face too low in frame (center below 65% height)
-        if (faceCenterY > 0.65) {
-          issues.push("Centralize seu rosto na câmera");
-          reasons.push("face");
-        }
-        
-        // Face too high (center above 15% height) - mostly background above
-        if (faceCenterY < 0.15) {
-          issues.push("Abaixe a câmera — seu rosto está muito no topo");
-          reasons.push("face");
+        // Face in bottom third (center Y > 66%)
+        if (faceCenterY > 0.66) {
+          issues.push("Rosto muito baixo — centralize seu rosto na câmera");
+          reasons.push("face_framing" as RejectReason);
         }
       }
       

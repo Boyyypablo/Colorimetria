@@ -7,7 +7,7 @@
  * Primary "Tirar outra foto" → capture; Secondary "Cancelar"
  */
 
-type RejectReason = "light" | "face" | "blur" | "resolution" | "other";
+type RejectReason = "light" | "face" | "face_framing" | "blur" | "hdr_filter" | "resolution" | "other";
 
 type RejectRetakeStepProps = {
   photoUrl: string;
@@ -18,8 +18,10 @@ type RejectRetakeStepProps = {
 
 const WARNING_MESSAGES: Record<RejectReason, string> = {
   light: "Iluminação irregular — use luz natural frontal",
-  face: "Rosto não detectado — centralize o rosto na foto",
+  face: "Rosto não detectado — centralize seu rosto e tente novamente",
+  face_framing: "Rosto muito distante ou mal enquadrado — aproxime-se e centralize",
   blur: "Foto desfocada ou tremida — segure firme o aparelho",
+  hdr_filter: "Filtro ou HDR extremo detectado — use foto sem edição",
   resolution: "Resolução muito baixa — use a câmera traseira",
   other: "Qualidade da foto insuficiente para análise confiável",
 };

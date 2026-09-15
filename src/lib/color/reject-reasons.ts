@@ -5,8 +5,10 @@
 
 export const REJECT_REASONS = {
   FACE_NOT_DETECTED: "face",
+  FACE_FRAMING: "face_framing",
   LIGHTING_IRREGULAR: "light",
   PHOTO_BLURRY: "blur",
+  HDR_FILTER: "hdr_filter",
   RESOLUTION_TOO_LOW: "resolution",
   OTHER: "other",
 } as const;
