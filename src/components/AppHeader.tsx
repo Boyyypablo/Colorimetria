@@ -16,14 +16,14 @@ export async function AppHeader() {
         {session ? (
           <>
             <Link href="/dashboard" className="opacity-80 hover:opacity-100">
-              Minhas análises
+              Minhas leituras
             </Link>
             <Link href="/analyze" className="opacity-80 hover:opacity-100">
-              Nova análise
+              Nova leitura
             </Link>
             {isStaff && (
               <Link href="/consultant" className="opacity-80 hover:opacity-100">
-                Consultora
+                Validação
               </Link>
             )}
             {session.user.role === "ADMIN" && (

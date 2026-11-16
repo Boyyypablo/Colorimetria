@@ -54,6 +54,22 @@ yarn-error.log*
 # vercel
 .vercel
 
+# cloudflare (legado)
+.wrangler
+.dev.vars
+.open-next
+.vinext
+
+# gerados
+scripts/seed-palettes.sql
+scripts/seed-palettes-one-line.txt
+
+# consultant-desk
+consultant-desk/**/node_modules
+consultant-desk/**/dist
+consultant-desk/frontend/dist
+consultant-desk/backend/dist
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

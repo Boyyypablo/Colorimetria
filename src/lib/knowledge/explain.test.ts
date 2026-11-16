@@ -43,8 +43,6 @@ describe("decideAnalysisStatus", () => {
       decideAnalysisStatus({
         classifierNeedsReview: false,
         rubricNeedsReview: false,
-        planNeedsHumanReview: false,
-        consultantError: false,
       }),
     ).toBe("READY");
   });
@@ -54,8 +52,6 @@ describe("decideAnalysisStatus", () => {
       decideAnalysisStatus({
         classifierNeedsReview: false,
         rubricNeedsReview: true,
-        planNeedsHumanReview: false,
-        consultantError: false,
       }),
     ).toBe("NEEDS_REVIEW");
   });

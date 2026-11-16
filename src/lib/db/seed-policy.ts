@@ -18,6 +18,8 @@ export function shouldSeedDemoUsers(
 ): boolean {
   if (env.NODE_ENV === "production") return false;
   if (env.ALLOW_DEMO_SEED === "false") return false;
+  // Opt-in explícito (ex.: seed de contas de teste no Supabase de desenvolvimento).
+  if (env.ALLOW_DEMO_SEED === "true") return true;
 
   const host = databaseHost(env.DATABASE_URL);
   if (!host || !LOOPBACK.has(host)) return false;

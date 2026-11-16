@@ -67,7 +67,7 @@ const STEPS = [
   {
     n: "02",
     title: "Análise da foto",
-    desc: "Envie uma foto em luz natural, sem maquiagem pesada. Medimos subtom, contraste e traços relevantes.",
+    desc: "Envie a selfie: o sistema confere a foto sozinho e avisa se precisa de atenção. Medimos subtom, contraste e traços relevantes.",
   },
   {
     n: "03",
@@ -92,7 +92,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const primaryHref = loggedIn ? "/analyze" : "/register";
-  const primaryLabel = loggedIn ? "Nova análise" : "Começar análise";
+  const primaryLabel = loggedIn ? "Nova leitura" : "Começar minha leitura";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -128,7 +128,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
           ))}
           {loggedIn ? (
             <Link href="/dashboard" className="lp-nav-link">
-              Minhas análises
+              Minhas leituras
             </Link>
           ) : (
             <Link href="/login" className="lp-nav-link">
@@ -173,7 +173,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               className="lp-mobile-menu__link"
               onClick={() => setMenuOpen(false)}
             >
-              Minhas análises
+              Minhas leituras
             </Link>
           ) : (
             <Link
@@ -431,7 +431,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               href="/dashboard"
               className="lp-btn lp-btn--ghost-light lp-btn--lg"
             >
-              Minhas análises
+              Minhas leituras
             </Link>
           )}
         </div>
@@ -439,6 +439,45 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
           <p>Análise online</p>
           <p>Foto privada · LGPD</p>
           <p>12 estações</p>
+        </div>
+      </section>
+
+      {/* Registro de contas de teste — só e-mails (sem senhas na UI pública). */}
+      <section
+        id="contas-teste"
+        className="lp-section lp-section--linen scroll-mt-24"
+        aria-label="Contas de teste"
+      >
+        <div className="lp-section__inner max-w-[720px]">
+          <p className="lp-eyebrow">Ambiente de teste</p>
+          <h2 className="lp-h2 font-display mb-6">
+            Contas
+            <br />
+            <em>registradas</em>
+          </h2>
+          <p className="lp-prose mb-6">
+            E-mails usados para login de teste. Senhas, tokens e connection
+            strings nunca são exibidos nesta página.
+          </p>
+          <ul className="space-y-3 text-[0.95rem] text-[#5a4a3a]">
+            <li>
+              <strong>App Glowing</strong> —{" "}
+              <code>usuaria@colometria.app</code> (USER),{" "}
+              <code>consultora@colometria.app</code> (CONSULTANT),{" "}
+              <code>admin@colometria.app</code> (ADMIN)
+            </li>
+            <li>
+              <strong>Consultant-desk</strong> —{" "}
+              <code>consultora.glowing@desk.test</code> (+ contas{" "}
+              <code>*@desk.test</code> criadas nos testes E2E; memória do
+              processo — recriam após restart)
+            </li>
+            <li>
+              <strong>Supabase</strong> — schema + 12 paletas online; usuários
+              demo só existem após <code>npm run db:seed</code> com{" "}
+              <code>ALLOW_DEMO_SEED=true</code>
+            </li>
+          </ul>
         </div>
       </section>
 

@@ -63,6 +63,7 @@ export function ConsultantReviewForm({
       return;
     }
     setMsg("Relatório aprovado.");
+    router.push("/consultant");
     router.refresh();
   }
 

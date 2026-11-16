@@ -101,15 +101,8 @@ export function presentEvaluation(
 export function decideAnalysisStatus(input: {
   classifierNeedsReview: boolean;
   rubricNeedsReview: boolean;
-  planNeedsHumanReview: boolean;
-  consultantError: boolean;
 }): "NEEDS_REVIEW" | "READY" {
-  if (
-    input.classifierNeedsReview ||
-    input.rubricNeedsReview ||
-    input.planNeedsHumanReview ||
-    input.consultantError
-  ) {
+  if (input.classifierNeedsReview || input.rubricNeedsReview) {
     return "NEEDS_REVIEW";
   }
   return "READY";

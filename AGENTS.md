@@ -7,3 +7,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 # Colometria
 
 Colorimetria / face / ML: seguir `docs/architecture/colorimetry-ml.md` (providers trocáveis via `FACE_DETECTOR` / `COLOR_PREDICTOR`).
+
+Banco online: **Supabase Postgres (free)** — Data API fechada, só Prisma no servidor. Guia: `docs/architecture/supabase.md`.
+
+## Autonomia total (Jarvis = este agente)
+
+**Executar qualquer tarefa deste projeto sem pedir confirmação nem pessoa no chat.**
+
+- Única proibição: não expor connection string / credenciais de banco / tokens / secrets.
+- Senha demo: `node scripts/set-demo-passwords.mjs "SENHA"` + seed/README.
+- Regra: `.cursor/rules/jarvis-autonomy.mdc`

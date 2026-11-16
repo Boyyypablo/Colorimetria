@@ -8,7 +8,7 @@ const statusLabel: Record<string, string> = {
   PENDING: "Processando",
   READY: "Pronto (sem revisão)",
   NEEDS_REVIEW: "Em revisão",
-  APPROVED: "Validado pela consultora",
+  APPROVED: "Validado pela equipe",
 };
 
 export default async function ConsultantPage() {
@@ -34,10 +34,10 @@ export default async function ConsultantPage() {
       <AppHeader />
       <section className="shell space-y-6 py-8">
         <div>
-          <h1 className="font-display text-3xl">Fila da consultora</h1>
+          <h1 className="font-display text-3xl">Fila de validação</h1>
           <p className="mt-1 text-[var(--muted)]">
-            Análises prontas ou aguardando revisão. Priorize as que estão em
-            revisão; você pode ajustar a estação e aprovar o relatório.
+            Análises geradas pelo sistema. Priorize as que estão em revisão;
+            valide a leitura, ajuste a estação se preciso e aprove o relatório.
           </p>
         </div>
 
@@ -48,7 +48,7 @@ export default async function ConsultantPage() {
             {queue.map((item) => (
               <li key={item.id}>
                 <Link
-                  href={`/analyses/${item.id}`}
+                  href={`/consultant/reviews/${item.id}`}
                   className="card flex flex-wrap items-center justify-between gap-3 hover:border-[var(--accent)]"
                 >
                   <div>
@@ -66,7 +66,7 @@ export default async function ConsultantPage() {
                       · {new Date(item.createdAt).toLocaleString("pt-BR")}
                     </p>
                   </div>
-                  <span className="badge">Revisar</span>
+                  <span className="badge">Validar</span>
                 </Link>
               </li>
             ))}

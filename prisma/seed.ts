@@ -6,7 +6,7 @@ import { shouldSeedDemoUsers } from "../src/lib/db/seed-policy";
 
 const prisma = new PrismaClient();
 
-const DEMO_PASSWORD = "t1234@";
+const DEMO_PASSWORD = (process.env.DEMO_PASSWORD || "teste123@@").trim();
 
 async function seedDemoUsers() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
@@ -47,10 +47,11 @@ async function seedDemoUsers() {
     update: { name: "Usuária Demo", passwordHash },
   });
 
-  console.log("Usuários demo (somente este Postgres local):");
-  console.log("  consultora@colometria.app / t1234@");
-  console.log("  usuaria@colometria.app / t1234@");
-  console.log("  admin@colometria.app / t1234@");
+  // Não logar senhas — só e-mails (senha só no README / docs internos).
+  console.log("Usuários demo (ALLOW_DEMO_SEED=true, nunca em production):");
+  console.log("  consultora@colometria.app");
+  console.log("  usuaria@colometria.app");
+  console.log("  admin@colometria.app");
 }
 
 async function main() {

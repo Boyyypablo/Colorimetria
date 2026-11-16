@@ -18,7 +18,7 @@ function uploadRoot(): string {
   );
 }
 
-function useBlobStorage(): boolean {
+function isBlobStorageEnabled(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
@@ -55,7 +55,7 @@ export async function saveUserImage(
   const filename = `${Date.now()}-${randomUUID()}.${ext}`;
   const relative = `${userId}/${filename}`;
 
-  if (useBlobStorage()) {
+  if (isBlobStorageEnabled()) {
     await put(relative, buffer, {
       access: "private",
       addRandomSuffix: false,
@@ -72,7 +72,7 @@ export async function saveUserImage(
 export async function readUpload(relativePath: string): Promise<Buffer> {
   const { relative } = assertRelativeUploadPath(relativePath);
 
-  if (useBlobStorage()) {
+  if (isBlobStorageEnabled()) {
     const result = await get(relative, { access: "private" });
     if (!result || result.statusCode !== 200 || !result.stream) {
       throw new Error("Arquivo não encontrado");
@@ -93,7 +93,7 @@ export async function readUpload(relativePath: string): Promise<Buffer> {
 export async function deleteUpload(relativePath: string): Promise<void> {
   const { relative } = assertRelativeUploadPath(relativePath);
   try {
-    if (useBlobStorage()) {
+    if (isBlobStorageEnabled()) {
       await del(relative);
       return;
     }
@@ -105,7 +105,7 @@ export async function deleteUpload(relativePath: string): Promise<void> {
 
 export async function uploadExists(relativePath: string): Promise<boolean> {
   try {
-    if (useBlobStorage()) {
+    if (isBlobStorageEnabled()) {
       const result = await get(assertRelativeUploadPath(relativePath).relative, {
         access: "private",
       });

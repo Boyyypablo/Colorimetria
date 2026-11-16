@@ -44,19 +44,19 @@ export default auth((req) => {
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-DNS-Prefetch-Control", "off");
+  res.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   res.headers.set(
     "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=()",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
   );
   return res;
 });
 
 export const config = {
+  // Headers de segurança em todas as páginas; auth só nas rotas protegidas acima.
   matcher: [
-    "/dashboard/:path*",
-    "/analyze/:path*",
-    "/analyses/:path*",
-    "/consultant/:path*",
-    "/admin/:path*",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

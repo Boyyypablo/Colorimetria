@@ -1,10 +1,14 @@
+# DESCONTINUADO no fluxo normal — banco = Supabase (DATABASE_URL no .env).
+# Só sobe com: docker compose --profile legacy-local up -d
+# Ver docs/architecture/supabase.md
+
 services:
   postgres:
+    profiles: ["legacy-local"]
     image: postgres:16-alpine
     container_name: colometria-postgres
     restart: unless-stopped
     ports:
-      # Só neste PC — não publicar 0.0.0.0 (rede local / túnel acidental).
       - "127.0.0.1:5433:5432"
     environment:
       POSTGRES_USER: colometria

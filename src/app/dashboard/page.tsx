@@ -5,10 +5,10 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 
 const statusLabel: Record<string, string> = {
-  PENDING: "Processando",
-  READY: "Pronto",
+  PENDING: "Em preparação",
+  READY: "Pronta",
   NEEDS_REVIEW: "Em revisão",
-  APPROVED: "Validado pela consultora",
+  APPROVED: "Validada pela consultora",
 };
 
 const contextLabel: Record<string, string> = {
@@ -28,55 +28,53 @@ export default async function DashboardPage() {
   });
 
   return (
-    <main>
+    <main className="dash-leituras">
       <AppHeader />
-      <section className="shell space-y-6 py-8">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <section className="shell dash-leituras__shell">
+        <div className="dash-leituras__head">
           <div>
-            <h1 className="font-display text-3xl">Minhas análises</h1>
-            <p className="mt-1 text-[var(--muted)]">
+            <p className="dash-leituras__eyebrow">Espaço pessoal</p>
+            <h1 className="font-script dash-leituras__title">Minhas leituras</h1>
+            <p className="dash-leituras__hello">
               Olá, {session.user.name || session.user.email}
             </p>
           </div>
-          <Link href="/analyze" className="btn btn-primary">
-            Nova análise
+          <Link href="/analyze" className="btn btn-primary dash-leituras__cta">
+            Nova leitura
           </Link>
         </div>
 
         {analyses.length === 0 ? (
-          <div className="card text-[var(--muted)]">
-            Nenhuma análise ainda.{" "}
+          <div className="dash-leituras__empty">
+            Ainda não há leituras por aqui.{" "}
             <Link href="/analyze" className="underline">
               Envie sua primeira foto
             </Link>
             .
           </div>
         ) : (
-          <ul className="grid gap-3">
+          <ul className="dash-leituras__list">
             {analyses.map((a) => {
               const season = a.overrideSeason || a.season;
               return (
                 <li key={a.id}>
-                  <Link
-                    href={`/analyses/${a.id}`}
-                    className="card flex items-center justify-between gap-4 transition hover:border-[var(--accent)]"
-                  >
+                  <Link href={`/analyses/${a.id}`} className="dash-leituras__card">
                     <div>
-                      <p className="font-medium">
-                        {season?.namePt || "Em processamento"}
+                      <p className="dash-leituras__card-title font-script">
+                        {season?.namePt || "Em preparação"}
                       </p>
-                      <p className="text-sm text-[var(--muted)]">
+                      <p className="dash-leituras__card-meta">
                         {new Date(a.createdAt).toLocaleString("pt-BR")} ·{" "}
                         {statusLabel[a.status] || a.status}
                         {a.consultantApproved
-                          ? " · Validado pela consultora"
+                          ? " · Validada pela consultora"
                           : ""}
                         {a.status === "PENDING"
                           ? " · em geral leva poucos minutos"
                           : ""}
                       </p>
                     </div>
-                    <span className="badge">
+                    <span className="dash-leituras__badge">
                       {contextLabel[a.context] || a.context}
                     </span>
                   </Link>

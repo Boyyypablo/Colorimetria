@@ -37,6 +37,25 @@ enum FeedbackKind {
   DID_NOT_HELP
 }
 
+/// Status da thread do desk externo (consultora).
+enum DeskThreadStatus {
+  OPEN
+  WAITING
+  CLOSED
+}
+
+enum DeskReviewStatus {
+  PENDING
+  REPORT_SENT
+  CLOSED
+}
+
+enum DeskMessageRole {
+  CLIENT
+  CONSULTANT
+  SYSTEM
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -55,6 +74,11 @@ model User {
   colorProfile   UserColorProfile?
   feedbackEvents FeedbackEvent[]
   analysisSamples AnalysisSample[]
+  deskThreadsAssigned DeskThread[] @relation("DeskThreadAssignee")
+  deskReviewsAssigned DeskReview[] @relation("DeskReviewAssignee")
+  deskMessages        DeskMessage[] @relation("DeskMessageAuthor")
+  deskTransfersFrom   DeskThreadTransfer[] @relation("DeskTransferFrom")
+  deskTransfersTo     DeskThreadTransfer[] @relation("DeskTransferTo")
 }
 
 model Account {
@@ -260,4 +284,82 @@ model SimulationJob {
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+/// Avaliação na fila do desk externo (persistida — não apagar threads).
+model DeskReview {
+  id                   String           @id @default(cuid())
+  analysisId           String
+  clientLabel          String
+  seasonName           String?
+  status               DeskReviewStatus @default(PENDING)
+  autoReport           Json
+  assignedConsultantId String?
+  reportSentAt         DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  assignedConsultant User?       @relation("DeskReviewAssignee", fields: [assignedConsultantId], references: [id], onDelete: SetNull)
+  thread             DeskThread?
+
+  @@index([status, createdAt])
+  @@index([assignedConsultantId])
+}
+
+/// Conversa do desk. Nunca hard-delete: use archivedAt.
+model DeskThread {
+  id                   String           @id @default(cuid())
+  analysisId           String
+  reviewId             String           @unique
+  clientLabel          String
+  status               DeskThreadStatus @default(OPEN)
+  assignedConsultantId String?
+  unreadForConsultant  Int              @default(0)
+  lastMessageAt        DateTime?
+  /// Arquivada some da lista ativa; histórico permanece.
+  archivedAt           DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  review             DeskReview           @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  assignedConsultant User?                @relation("DeskThreadAssignee", fields: [assignedConsultantId], references: [id], onDelete: SetNull)
+  messages           DeskMessage[]
+  transfers          DeskThreadTransfer[]
+
+  @@index([assignedConsultantId, archivedAt])
+  @@index([status, archivedAt])
+  @@index([unreadForConsultant, archivedAt])
+}
+
+model DeskMessage {
+  id            String          @id @default(cuid())
+  threadId      String
+  role          DeskMessageRole
+  body          String
+  attachments   Json?
+  externalLinks Json?
+  authorId      String?
+  createdAt     DateTime        @default(now())
+
+  thread DeskThread @relation(fields: [threadId], references: [id], onDelete: Restrict)
+  author User?      @relation("DeskMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+}
+
+/// Histórico de encaminhamento entre consultoras.
+model DeskThreadTransfer {
+  id               String   @id @default(cuid())
+  threadId         String
+  fromConsultantId String?
+  toConsultantId   String
+  note             String?
+  createdAt        DateTime @default(now())
+
+  thread DeskThread @relation(fields: [threadId], references: [id], onDelete: Restrict)
+  from   User?      @relation("DeskTransferFrom", fields: [fromConsultantId], references: [id], onDelete: SetNull)
+  to     User       @relation("DeskTransferTo", fields: [toConsultantId], references: [id], onDelete: Restrict)
+
+  @@index([threadId, createdAt])
+  @@index([toConsultantId])
 }

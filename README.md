@@ -5,10 +5,11 @@ Produto web de **colorimetria pessoal** (*Colorimetria & Estética*): análise s
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- **PostgreSQL próprio** (Docker Compose, porta **5433**) + Prisma — **sem Supabase**
-- Auth.js (email/senha)
-- Storage local privado em `uploads/` (servido só via API autenticada)
-- Looks de roupa: catálogo próprio na análise (silhuetas + paleta). VTO cloud (HF/Gemini/fal) estacionado sem crédito.
+- **PostgreSQL** (Docker local **5433**; produção **Supabase free** `sa-east-1`) + Prisma
+- Auth.js (email/senha) — **sem** Supabase Auth no browser
+- Storage local privado em `uploads/` (API autenticada)
+- Análise pelo sistema + validação humana em `/consultant` (sem LLM)
+- Looks de roupa: catálogo próprio na análise. VTO cloud estacionado sem crédito.
 
 ## Subir o ambiente
 
@@ -35,9 +36,9 @@ Só existem no Postgres de **localhost**. O seed **não** cria admin/consultora 
 
 | Email | Senha | Papel |
 |-------|-------|-------|
-| `usuaria@colometria.app` | `t1234@` | Usuária |
-| `consultora@colometria.app` | `t1234@` | Consultora |
-| `admin@colometria.app` | `t1234@` | Admin |
+| `usuaria@colometria.app` | `teste123@@` | Usuária |
+| `consultora@colometria.app` | `teste123@@` | Consultora |
+| `admin@colometria.app` | `teste123@@` | Admin |
 
 ## Variáveis
 
@@ -58,6 +59,14 @@ Copie a URL `https://….trycloudflare.com` e envie aos testadores.
 Opcional: coloque essa URL em `AUTH_URL` no `.env` e reinicie o `npm run dev`.
 
 Requisito: [cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/install-and-setup/installation/) (`winget install Cloudflare.cloudflared`).
+
+## Supabase (produção free)
+
+Projeto `colometria` já criado (São Paulo). Schema + 12 paletas + lockdown da Data API.
+
+1. Cole a `DATABASE_URL` do dashboard em `.env.production` (veja `docs/architecture/supabase.md`)
+2. Local continua com Docker (`db:up` + `.env`)
+3. **Nunca** exponha chave `anon` / `service_role` no front
 
 ## Deploy em VPS (Docker)
 

@@ -4,7 +4,8 @@ Plano vivo do produto. Se um provider falhar em produção, **troca-se o adapter
 
 Documento irmão (roadmap detalhado): [`colorimetry-ml-roadmap.md`](./colorimetry-ml-roadmap.md).  
 IA local sem tokens pagos + rubrica de avaliação: [`ia-local-conhecimento.md`](./ia-local-conhecimento.md).  
-Melhorias seguintes: [`melhorias-sistema.md`](./melhorias-sistema.md).
+Melhorias seguintes: [`melhorias-sistema.md`](./melhorias-sistema.md).  
+Deploy / banco Supabase (free, Data API fechada): [`supabase.md`](./supabase.md).
 
 ## Objetivos
 
@@ -19,7 +20,7 @@ Melhorias seguintes: [`melhorias-sistema.md`](./melhorias-sistema.md).
 | 1 | **feita (commit)** | Face detect pluggable + ROI + features tipadas + stubs schema |
 | 1b | **feita** | BlazeFace padrão (`FACE_DETECTOR=blazeface`; heuristic só fallback) |
 | 2 | **parcial** | Feedback UI + `ml:export` + painel `/admin/ml` + correção de pele |
-| 2b | **em curso** | Consultora IA (`intention` + plano flexível; visão híbrida) |
+| 2b | **feita (sem LLM)** | Análise profunda pelo sistema (rubrica + coaching) + validação humana em `/consultant/reviews/[id]` |
 | 3 | planejada | Modelo tabular v1 + bias de estação (`UserColorProfile`) + retreino |
 
 ## Contrato de troca (adapters)

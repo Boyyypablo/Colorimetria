@@ -1,18 +1,23 @@
+/** Dicas antecipadas — aviso, não checklist obrigatório. */
 export const PHOTO_QUALITY_TIPS = [
   {
     id: "luz",
-    label: "Luz natural frontal (perto da janela, sem contraluz forte)",
+    label: "Iluminação natural frontal",
+    detail: "Perto da janela, sem contraluz forte — a luz muda a leitura do subtom.",
   },
   {
-    id: "filtro",
-    label: "Sem filtro, modo beleza ou HDR extremo",
+    id: "angulo",
+    label: "Ângulo de frente",
+    detail: "Rosto centralizado, câmera na altura dos olhos, sem inclinar demais.",
+  },
+  {
+    id: "nitidez",
+    label: "Nitidez",
+    detail: "Foto nítida, sem filtro, modo beleza ou HDR extremo.",
   },
   {
     id: "rosto",
-    label: "Rosto centralizado; cabelo afastado do rosto se possível",
-  },
-  {
-    id: "acessorios",
-    label: "Sem óculos escuros nem maquiagem pesada",
+    label: "Rosto livre",
+    detail: "Cabelo afastado do rosto; sem óculos escuros nem maquiagem pesada.",
   },
 ] as const;

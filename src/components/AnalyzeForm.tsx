@@ -25,6 +25,7 @@ const INTENTION_MIN = 8;
 const INTENTION_MAX = 600;
 
 type FormState = "idle" | "sending" | "error";
+type FaceStatus = "idle" | "locating" | "found" | "miss";
 
 export function AnalyzeForm() {
   const router = useRouter();
@@ -36,10 +37,7 @@ export function AnalyzeForm() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [objectPosition, setObjectPosition] = useState("50% 40%");
-  const [faceStatus, setFaceStatus] = useState<"idle" | "locating" | "found" | "miss">(
-    "idle",
-  );
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({});
+  const [faceStatus, setFaceStatus] = useState<FaceStatus>("idle");
   const [intention, setIntention] = useState("");
   const [goals, setGoals] = useState<AnalysisGoalId[]>([...DEFAULT_ANALYSIS_GOALS]);
   const [context, setContext] = useState<"casual" | "trabalho" | "noite" | "">("");
@@ -50,11 +48,10 @@ export function AnalyzeForm() {
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const allTipsConfirmed = PHOTO_QUALITY_TIPS.every((tip) => checklist[tip.id]);
   const trimmedIntention = intention.trim();
   const canSubmit =
     Boolean(photoFile) &&
-    allTipsConfirmed &&
+    faceStatus !== "locating" &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
     Boolean(context) &&
@@ -107,7 +104,6 @@ export function AnalyzeForm() {
     const fd = new FormData();
     fd.set("image", photoFile);
     fd.set("biometricConsent", "true");
-    fd.set("photoTipsConfirmed", "true");
     fd.set("intention", trimmedIntention);
     fd.set("makeupOnPhoto", makeupOnPhoto ? "true" : "false");
     fd.set("dyedHair", dyedHair ? "true" : "false");
@@ -171,13 +167,28 @@ export function AnalyzeForm() {
           <em>sua paleta.</em>
         </h1>
         <p className="af-lede">
-          Envie sua foto e conte o que quer trabalhar. Nossa consultora
-          revisará cada detalhe com cuidado — sem pressa.
+          Envie sua foto e conte o que quer trabalhar. O sistema analisa a
+          qualidade automaticamente; a equipe valida quando for necessário.
         </p>
       </div>
 
-      {/* 01 — Foto */}
       <AfSection number="01" title="Sua foto" subtitle="A base da análise">
+        <aside className="af-photo-guide" aria-label="O que mais importa na foto">
+          <p className="af-photo-guide__label">Antes de enviar</p>
+          <p className="af-photo-guide__lead">
+            Para uma leitura mais fiel, estes pontos fazem mais diferença do
+            que o resto:
+          </p>
+          <ul className="af-photo-guide__list">
+            {PHOTO_QUALITY_TIPS.map((tip) => (
+              <li key={tip.id}>
+                <strong>{tip.label}</strong>
+                <span>{tip.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </aside>
+
         <div
           ref={dropzoneRef}
           className={`af-dropzone ${photoUrl ? "af-dropzone--filled" : ""}`}
@@ -197,14 +208,6 @@ export function AnalyzeForm() {
                 className="af-dropzone__preview"
                 style={{ objectPosition }}
               />
-              {faceStatus === "locating" ? (
-                <p className="af-dropzone__face-status">A localizar o rosto…</p>
-              ) : null}
-              {faceStatus === "miss" ? (
-                <p className="af-dropzone__face-status">
-                  Não localizamos o rosto — a leitura fica provisória até uma selfie frontal.
-                </p>
-              ) : null}
               <div className="af-dropzone__swap">Trocar foto</div>
             </>
           ) : (
@@ -226,60 +229,97 @@ export function AnalyzeForm() {
           aria-label="Foto do rosto"
         />
 
-        <div className="af-checklist">
-          <p className="af-checklist__label">Confirme a qualidade da foto</p>
-          {PHOTO_QUALITY_TIPS.map((tip) => (
-            <label key={tip.id} className="af-checklist__item">
-              <input
-                type="checkbox"
-                className="af-native-checkbox"
-                checked={Boolean(checklist[tip.id])}
-                onChange={(e) =>
-                  setChecklist((prev) => ({ ...prev, [tip.id]: e.target.checked }))
-                }
-              />
-              <span className="af-checklist__text">{tip.label}</span>
-            </label>
-          ))}
-        </div>
+        {faceStatus === "locating" ? (
+          <p className="af-auto-check af-auto-check--pending" role="status">
+            Analisando a foto automaticamente…
+          </p>
+        ) : null}
+        {faceStatus === "found" ? (
+          <p className="af-auto-check af-auto-check--ok" role="status">
+            Foto ok para seguir — localizamos o rosto. A qualidade fina
+            (luz, nitidez) será conferida no servidor após o envio.
+          </p>
+        ) : null}
+        {faceStatus === "miss" ? (
+          <p className="af-auto-check af-auto-check--warn" role="status">
+            Atenção: não localizamos bem o rosto. Prefira uma selfie frontal
+            com boa luz — a leitura pode ficar provisória.
+          </p>
+        ) : null}
 
-        <div className="af-checklist">
-          <p className="af-checklist__label">O que pode enviesar a medição</p>
-          <label className="af-checklist__item">
+        <div className="af-bias">
+          <p className="af-bias__label">Contexto opcional (ajuda a interpretação)</p>
+          <label className="af-bias__item">
             <input
               type="checkbox"
               className="af-native-checkbox"
               checked={makeupOnPhoto}
               onChange={(e) => setMakeupOnPhoto(e.target.checked)}
             />
-            <span className="af-checklist__text">Estou maquiada nesta foto</span>
+            <span>Estou maquiada nesta foto</span>
           </label>
-          <label className="af-checklist__item">
+          <label className="af-bias__item">
             <input
               type="checkbox"
               className="af-native-checkbox"
               checked={dyedHair}
               onChange={(e) => setDyedHair(e.target.checked)}
             />
-            <span className="af-checklist__text">
-              O cabelo está tingido (não é a cor da raiz)
-            </span>
+            <span>O cabelo está tingido (não é a cor da raiz)</span>
           </label>
-          <label className="af-checklist__item">
+          <label className="af-bias__item">
             <input
               type="checkbox"
               className="af-native-checkbox"
               checked={artificialLight}
               onChange={(e) => setArtificialLight(e.target.checked)}
             />
-            <span className="af-checklist__text">
-              A luz é artificial (lâmpada, não janela)
-            </span>
+            <span>A luz é artificial (lâmpada, não janela)</span>
           </label>
+        </div>
+
+        <div
+          className={`af-consent af-consent--inline${!lgpd ? " af-consent--invalid" : ""}`}
+          aria-invalid={!lgpd}
+        >
+          <label className="af-consent__row">
+            <input
+              type="checkbox"
+              className="af-native-checkbox"
+              checked={lgpd}
+              required
+              aria-required="true"
+              aria-describedby="af-lgpd-alert"
+              onChange={(e) => setLgpd(e.target.checked)}
+            />
+            <div>
+              <p className="af-consent__title">
+                Consinto com o uso da minha foto para análise de colorimetria
+                pessoal (LGPD).{" "}
+                <span className="af-consent__required" aria-hidden>
+                  *
+                </span>
+              </p>
+              <p className="af-consent__hint">
+                Uso exclusivo desta análise, acesso restrito à equipe de
+                validação, conforme a Lei nº 13.709/2018. Você pode pedir
+                exclusão a qualquer momento.
+              </p>
+            </div>
+          </label>
+          {!lgpd ? (
+            <p id="af-lgpd-alert" className="af-consent__alert" role="alert">
+              Preenchimento obrigatório — marque o consentimento LGPD para
+              continuar.
+            </p>
+          ) : (
+            <p id="af-lgpd-alert" className="sr-only">
+              Consentimento LGPD aceito.
+            </p>
+          )}
         </div>
       </AfSection>
 
-      {/* 02 — Intenção */}
       <AfSection
         number="02"
         title="O que você quer trabalhar?"
@@ -298,7 +338,6 @@ export function AnalyzeForm() {
         </p>
       </AfSection>
 
-      {/* 03 — Áreas de foco */}
       <AfSection number="03" title="Áreas de foco" subtitle="Selecione uma ou mais">
         <div className="af-chips">
           {ANALYSIS_GOAL_OPTIONS.map((opt) => {
@@ -319,7 +358,6 @@ export function AnalyzeForm() {
         </div>
       </AfSection>
 
-      {/* 04 — Contexto */}
       <AfSection
         number="04"
         title="Contexto principal"
@@ -344,30 +382,6 @@ export function AnalyzeForm() {
         </div>
       </AfSection>
 
-      {/* LGPD */}
-      <div className="af-consent">
-        <label className="af-consent__row">
-          <input
-            type="checkbox"
-            className="af-native-checkbox"
-            checked={lgpd}
-            onChange={(e) => setLgpd(e.target.checked)}
-          />
-          <div>
-            <p className="af-consent__title">
-              Consinto com o uso da minha foto para fins de análise de
-              colorimetria pessoal.
-            </p>
-            <p className="af-consent__hint">
-              Sua foto é usada exclusivamente para esta análise, com acesso
-              restrito à consultora responsável. Em conformidade com a LGPD
-              (Lei nº 13.709/2018). Você pode solicitar a exclusão a qualquer
-              momento.
-            </p>
-          </div>
-        </label>
-      </div>
-
       {errorMessage && <p className="af-error-banner">{errorMessage}</p>}
 
       <div className="af-submit">
@@ -381,7 +395,8 @@ export function AnalyzeForm() {
         </button>
         {!canSubmit && (
           <p className="af-submit__hint">
-            Preencha todos os campos obrigatórios para continuar.
+            Foto, intenção, áreas, contexto e consentimento LGPD são
+            obrigatórios.
           </p>
         )}
       </div>

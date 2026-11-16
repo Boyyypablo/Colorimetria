@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { saveUserImage } from "@/lib/storage/local";
 import { analyzeImageBuffer } from "@/lib/color/classifier";
 import { parseAnalysisGoals } from "@/lib/color/goals";
 import { buildRecommendations, getSeasonById } from "@/lib/color/recommendations";
-import { generateConsultantPlan } from "@/lib/ai/consultant";
 import { evaluateWithRubric } from "@/lib/knowledge/evaluate";
-import { decideAnalysisStatus, presentEvaluation } from "@/lib/knowledge/explain";
+import {
+  decideAnalysisStatus,
+  presentEvaluation,
+  type EvaluationView,
+} from "@/lib/knowledge/explain";
 import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientSafeErrorMessage } from "@/lib/security/redact";
 
 export const runtime = "nodejs";
 export const maxDuration = 180;
@@ -88,12 +91,6 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const ext = file.type.includes("png") ? "png" : "jpg";
-  const imageMediaType =
-    file.type === "image/png"
-      ? ("image/png" as const)
-      : file.type === "image/webp"
-        ? ("image/webp" as const)
-        : ("image/jpeg" as const);
   const imagePath = await saveUserImage(session.user.id, buffer, ext);
 
   const pending = await prisma.analysis.create({
@@ -108,13 +105,18 @@ export async function POST(request: Request) {
   });
 
   try {
-    const result = applyPhotoIntake(await analyzeImageBuffer(buffer), parsePhotoIntake(form));
+    const result = applyPhotoIntake(
+      await analyzeImageBuffer(buffer),
+      parsePhotoIntake(form),
+    );
     const season = getSeasonById(result.seasonId);
     if (!season) {
       throw new Error("Estação não encontrada");
     }
 
-    let recommendations = buildRecommendations(season, context, {
+    let recommendations: ReturnType<typeof buildRecommendations> & {
+      evaluation?: EvaluationView;
+    } = buildRecommendations(season, context, {
       temperatureScore: result.features.temperatureScore,
       goals,
       skinLab: result.features.labUndertone,
@@ -131,37 +133,9 @@ export async function POST(request: Request) {
     const evaluation = presentEvaluation(opinion, season.namePt, season.id);
     recommendations = { ...recommendations, evaluation };
 
-    const ai = await generateConsultantPlan({
-      intention,
-      goals,
-      context,
-      seasonId: season.id,
-      seasonName: season.namePt,
-      undertoneLabel: result.undertoneLabel,
-      confidence: result.confidence,
-      features: result.features,
-      photoQuality: result.photoQuality as unknown as Record<string, unknown>,
-      imageBuffer: buffer,
-      imageMediaType,
-    });
-
-    // Com plano IA ok, a correção de pele deixa de ser o catálogo fixo.
-    if (ai.plan) {
-      recommendations = {
-        ...recommendations,
-        skinCorrection: null,
-        coaching: {
-          ...recommendations.coaching,
-          attentionRedirectTips: [],
-        },
-      };
-    }
-
     const needsReviewStatus = decideAnalysisStatus({
       classifierNeedsReview: result.needsReview,
       rubricNeedsReview: opinion.needsReview,
-      planNeedsHumanReview: Boolean(ai.plan?.needsHumanReview),
-      consultantError: ai.meta.status === "error",
     });
 
     const analysis = await prisma.analysis.update({
@@ -176,8 +150,6 @@ export async function POST(request: Request) {
         recommendations,
         detectorProvider: result.photoQuality.detectorProvider,
         predictorId: result.predictorId,
-        consultantPlan: ai.plan ?? Prisma.JsonNull,
-        consultantPlanMeta: ai.meta,
       },
       include: {
         season: true,
@@ -202,13 +174,20 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ analysis });
   } catch (err) {
+    console.error(
+      "[analyses] falha na análise",
+      err instanceof Error ? err.name : "unknown",
+    );
     await prisma.analysis.update({
       where: { id: pending.id },
       data: { status: "NEEDS_REVIEW" },
     });
     return NextResponse.json(
       {
-        error: err instanceof Error ? err.message : "Não foi possível concluir a análise.",
+        error: clientSafeErrorMessage(
+          err,
+          "Não foi possível concluir a análise.",
+        ),
         analysisId: pending.id,
       },
       { status: 500 },

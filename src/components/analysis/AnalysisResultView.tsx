@@ -4,6 +4,7 @@ import { useState } from "react";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
+import { ConsultantChatInvite } from "@/components/analysis/ConsultantChatInvite";
 import { GarmentPreview } from "@/components/analysis/GarmentPreview";
 import type { GarmentKind } from "../../../data/wardrobe/garments";
 
@@ -14,21 +15,6 @@ export type RecItem = {
   garment?: GarmentKind;
   garmentLabel?: string;
   photoUrl?: string;
-};
-
-export type PlanPriority = {
-  trait: string;
-  action: "suavizar" | "exaltar" | "manter";
-  why: string;
-};
-
-export type PlanChange = {
-  id: string;
-  area: string;
-  suggestion: string;
-  colors: string[];
-  do: string;
-  dont: string;
 };
 
 export type AnalysisResultViewProps = {
@@ -61,14 +47,6 @@ export type AnalysisResultViewProps = {
   goalLabels: string[];
   contextLabel: string | null;
   consultantNote: { author: string | null; date: string; text: string } | null;
-  planStatusNote: string | null;
-  plan: {
-    assessment: string;
-    seasonAlignment: string;
-    needsHumanReview: boolean;
-    priorities: PlanPriority[];
-    changes: PlanChange[];
-  } | null;
   useColors: string[];
   rankedUse: Array<{ hex: string; why: string }>;
   avoidColors: string[];
@@ -97,7 +75,6 @@ export type AnalysisResultViewProps = {
     eyeshadow: RecItem[];
     base: RecItem[];
     corrections: Array<{ hex: string; label: string; target: string }>;
-    aiChanges: Array<{ id: string; label: string; target: string; hex?: string }>;
     initialVotes: Array<{ target: string; kind: "HELPED" | "DID_NOT_HELP" }>;
   } | null;
   staffTech: {
@@ -106,20 +83,11 @@ export type AnalysisResultViewProps = {
     contrastSource: string | null;
     detectorProvider: string | null;
     qualityBand: string | null;
-    consultantStatus: string | null;
-    usedVision: boolean;
-    consultantError: string | null;
   } | null;
   staffReview: {
     seasons: Array<{ id: string; namePt: string }>;
     currentSeasonId: string | null;
   } | null;
-};
-
-const ACTION_LABEL: Record<PlanPriority["action"], string> = {
-  suavizar: "Suavizar",
-  exaltar: "Exaltar",
-  manter: "Manter",
 };
 
 const ROLE_LABEL: Record<string, string> = {
@@ -156,153 +124,173 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
   }
 
   return (
-    <>
+    <div className="ar-stage">
+      <div className="ar-stage__wash" aria-hidden />
+      <div className="ar-shell">
+        <div className="ar-shell__rail ar-shell__rail--left" aria-hidden />
+        <div className="ar-shell__inner">
       {props.navItems.length > 0 && (
-        <nav className="ar-nav" aria-label="Seções do resultado">
-          {props.navItems.map((item) => {
-            const id = item.href.replace("#", "");
-            const isFeedback = id === "feedback";
-            return (
-              <button
-                key={item.href}
-                type="button"
-                className={`ar-nav__link${activeAnchor === id ? " ar-nav__link--active" : ""}${isFeedback ? " ar-nav__link--cta" : ""}`}
-                onClick={() => scrollTo(id)}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+        <nav className="ar-nav" aria-label="Seções da leitura">
+          <div className="ar-nav__track">
+            {props.navItems.map((item) => {
+              const id = item.href.replace("#", "");
+              const isFeedback = id === "feedback";
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  className={`ar-nav__link${activeAnchor === id ? " ar-nav__link--active" : ""}${isFeedback ? " ar-nav__link--cta" : ""}`}
+                  onClick={() => scrollTo(id)}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </nav>
       )}
 
       <section className="ar-hero">
-        <div className="ar-hero__copy">
-          <div className="ar-hero__top">
+        <div className="ar-hero__layout">
+          <aside className="ar-hero__media">
             <div className="ar-hero__photo-wrap">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={props.photoUrl}
-                alt="Foto enviada para análise"
+                alt="Foto enviada para a leitura"
                 className="ar-hero__photo"
               />
             </div>
+            {(props.undertoneLabel || props.confidencePercent != null) && (
+              <div className="ar-hero__media-meta">
+                {props.undertoneLabel ? (
+                  <p className="ar-hero__media-meta-row">
+                    <span>Subtom</span>
+                    <strong>{props.undertoneLabel}</strong>
+                  </p>
+                ) : null}
+                {props.confidencePercent != null ? (
+                  <p className="ar-hero__media-meta-row">
+                    <span>Certeza</span>
+                    <strong>
+                      {props.confidencePercent}%
+                      {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
+                    </strong>
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </aside>
+
+          <div className="ar-hero__copy">
             <div className="ar-hero__intro">
               <p className="ar-hero__eyebrow">Sua estação de cor</p>
               <h1 className="ar-hero__season">
                 {props.seasonName || "Em processamento"}
               </h1>
             </div>
-          </div>
 
-          {props.statusKey === "NEEDS_REVIEW" && (
-            <p className="ar-hero__provisional">
-              Leitura provisória — a evidência da foto não basta para fechar a
-              cartela. Refaça a selfie ou peça revisão.
-            </p>
-          )}
-          {(props.undertoneLabel || props.confidencePercent != null) && (
-            <div className="ar-hero__meta">
-              {props.undertoneLabel && (
-                <>
-                  <span className="ar-hero__meta-label">Subtom</span>
-                  <span className="ar-hero__meta-pill">{props.undertoneLabel}</span>
-                </>
-              )}
-              {props.confidencePercent != null && (
-                <span className="ar-hero__meta-note">
-                  Certeza da medição: {props.confidencePercent}%
-                  {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
-                  {props.confidenceNote ? ` — ${props.confidenceNote}` : ""}
-                </span>
-              )}
-            </div>
-          )}
+            {props.statusKey === "NEEDS_REVIEW" && (
+              <p className="ar-hero__provisional">
+                Leitura provisória — a evidência da foto não basta para fechar a
+                cartela. Refaça a selfie ou peça revisão.
+              </p>
+            )}
 
-          {props.seasonDescription && <p className="ar-hero__desc">{props.seasonDescription}</p>}
-          {props.undertoneHint && <p className="ar-hero__desc">{props.undertoneHint}</p>}
-          {props.sisterNote && <p className="ar-hero__desc">{props.sisterNote}</p>}
-          {props.evaluation && (
-            <div id="leitura" className="ar-why">
-              <p className="ar-why__label">Por que esta cartela</p>
-              <p className="ar-why__text">{props.evaluation.why}</p>
-              <ul className="ar-why__axes">
-                {props.evaluation.axes.map((axis) => (
-                  <li
-                    key={axis.id}
-                    className={`ar-why__axis${axis.uncertain ? " ar-why__axis--uncertain" : ""}`}
-                  >
-                    <span className="ar-why__axis-label">{axis.label}</span>
-                    <span className="ar-why__axis-value">{axis.value}</span>
-                    {axis.hint ? (
-                      <span className="ar-why__axis-hint">{axis.hint}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-              {props.evaluation.checks && props.evaluation.checks.length > 0 && (
-                <ul className="ar-why__checks">
-                  {props.evaluation.checks.map((check) => (
+            {props.confidenceNote ? (
+              <p className="ar-hero__meta-note">{props.confidenceNote}</p>
+            ) : null}
+
+            {props.seasonDescription && (
+              <p className="ar-hero__desc">{props.seasonDescription}</p>
+            )}
+            {props.undertoneHint && (
+              <p className="ar-hero__desc">{props.undertoneHint}</p>
+            )}
+            {props.sisterNote && (
+              <p className="ar-hero__desc">{props.sisterNote}</p>
+            )}
+
+            {props.evaluation && (
+              <div id="leitura" className="ar-why">
+                <p className="ar-why__label">Por que esta cartela</p>
+                <p className="ar-why__text">{props.evaluation.why}</p>
+                <ul className="ar-why__axes">
+                  {props.evaluation.axes.map((axis) => (
                     <li
-                      key={check.id}
-                      className={
-                        check.pass ? "ar-why__check" : "ar-why__check ar-why__check--fail"
-                      }
+                      key={axis.id}
+                      className={`ar-why__axis${axis.uncertain ? " ar-why__axis--uncertain" : ""}`}
                     >
-                      <span className="ar-why__check-label">{check.label}</span>
-                      <span className="ar-why__check-note">{check.note}</span>
+                      <span className="ar-why__axis-label">{axis.label}</span>
+                      <span className="ar-why__axis-value">{axis.value}</span>
+                      {axis.hint ? (
+                        <span className="ar-why__axis-hint">{axis.hint}</span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
-              )}
-            </div>
-          )}
-          {!props.isStaff && props.lowConfidenceWarning && (
-            <p className="ar-hero__desc" style={{ color: "var(--lp-terracotta)" }}>
-              Estimativa com baixa certeza — uma consultora pode revisar.
-            </p>
-          )}
-          {props.planStatusNote && (
-            <p className="ar-hero__desc" style={{ color: "var(--lp-terracotta)" }}>
-              {props.planStatusNote}
-            </p>
-          )}
-
-          {(props.intention || props.contextLabel) && (
-            <dl className="ar-hero__facts">
-              {props.intention && (
-                <div className="ar-hero__fact">
-                  <dt>Intenção</dt>
-                  <dd>&ldquo;{props.intention}&rdquo;</dd>
-                </div>
-              )}
-              {props.contextLabel && (
-                <div className="ar-hero__fact">
-                  <dt>Contexto</dt>
-                  <dd>{props.contextLabel}</dd>
-                </div>
-              )}
-            </dl>
-          )}
-
-          {props.goalLabels.length > 0 && (
-            <div className="ar-hero__areas">
-              <p className="ar-hero__areas-label">Áreas analisadas</p>
-              <div className="ar-hero__areas-list">
-                {props.goalLabels.map((g) => (
-                  <span key={g} className="ar-hero__area-chip">
-                    {g}
-                  </span>
-                ))}
+                {props.evaluation.checks && props.evaluation.checks.length > 0 && (
+                  <ul className="ar-why__checks">
+                    {props.evaluation.checks.map((check) => (
+                      <li
+                        key={check.id}
+                        className={
+                          check.pass
+                            ? "ar-why__check"
+                            : "ar-why__check ar-why__check--fail"
+                        }
+                      >
+                        <span className="ar-why__check-label">{check.label}</span>
+                        <span className="ar-why__check-note">{check.note}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {props.canRequestReview && (
-            <div style={{ marginTop: "1.5rem" }}>
-              <RequestReviewButton analysisId={props.analysisId} />
-            </div>
-          )}
+            {!props.isStaff && props.lowConfidenceWarning && (
+              <p className="ar-hero__desc ar-hero__desc--warn">
+                Estimativa com baixa certeza — uma consultora pode revisar.
+              </p>
+            )}
+
+            {(props.intention || props.contextLabel) && (
+              <dl className="ar-hero__facts">
+                {props.intention && (
+                  <div className="ar-hero__fact">
+                    <dt>Intenção</dt>
+                    <dd>&ldquo;{props.intention}&rdquo;</dd>
+                  </div>
+                )}
+                {props.contextLabel && (
+                  <div className="ar-hero__fact">
+                    <dt>Contexto</dt>
+                    <dd>{props.contextLabel}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+
+            {props.goalLabels.length > 0 && (
+              <div className="ar-hero__areas">
+                <p className="ar-hero__areas-label">Áreas analisadas</p>
+                <div className="ar-hero__areas-list">
+                  {props.goalLabels.map((g) => (
+                    <span key={g} className="ar-hero__area-chip">
+                      {g}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {props.canRequestReview && (
+              <div className="ar-hero__actions">
+                <RequestReviewButton analysisId={props.analysisId} />
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -349,89 +337,6 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             </div>
             <p className="ar-note__text">&ldquo;{props.consultantNote.text}&rdquo;</p>
           </div>
-        )}
-
-        {props.plan && (
-          <section id="plano" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Plano personalizado</h2>
-              <span className="ar-section__label">Estratégia</span>
-            </div>
-
-            <p className="ar-quote">&ldquo;{props.plan.assessment}&rdquo;</p>
-
-            {props.plan.needsHumanReview && (
-              <p className="ar-plan-note">
-                Esta análise pediu revisão humana — uma consultora pode refinar o plano.
-              </p>
-            )}
-
-            {props.plan.priorities.length > 0 && (
-              <>
-                <p className="ar-subhead">Prioridades</p>
-                <div className="ar-priority-list">
-                  {props.plan.priorities.map((p, i) => (
-                    <div key={`${p.trait}-${i}`} className="ar-priority">
-                      <span className={`ar-priority__badge ar-priority__badge--${p.action}`}>
-                        {ACTION_LABEL[p.action]}
-                      </span>
-                      <div>
-                        <p className="ar-priority__trait">{p.trait}</p>
-                        <p className="ar-priority__why">{p.why}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {props.plan.changes.length > 0 && (
-              <>
-                <p className="ar-subhead">Mudanças sugeridas</p>
-                <div className="ar-change-list">
-                  {props.plan.changes.map((c) => (
-                    <div key={c.id} className="ar-change">
-                      <div className="ar-change__head">
-                        <div>
-                          <p className="ar-change__area">{c.area}</p>
-                          <p className="ar-change__suggestion">{c.suggestion}</p>
-                        </div>
-                        {c.colors.length > 0 && (
-                          <div className="ar-change__colors">
-                            {c.colors.map((hex) => (
-                              <div
-                                key={hex}
-                                className="ar-change__color"
-                                style={{ background: hex }}
-                                title={hex}
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <div className="ar-change__grid">
-                        <div className="ar-change__do">
-                          <p className="ar-change__do-label">Faça</p>
-                          <p className="ar-change__do-text">{c.do}</p>
-                        </div>
-                        <div className="ar-change__dont">
-                          <p className="ar-change__dont-label">Evite</p>
-                          <p className="ar-change__dont-text">{c.dont}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            {props.plan.seasonAlignment && (
-              <div className="ar-alignment">
-                <p className="ar-alignment__label">Alinhamento com a estação</p>
-                <p className="ar-alignment__text">{props.plan.seasonAlignment}</p>
-              </div>
-            )}
-          </section>
         )}
 
         {props.useColors.length > 0 && (
@@ -618,7 +523,7 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               <h2 id="feedback-heading" className="ar-section__title">
                 Sua opinião
               </h2>
-              <span className="ar-section__label">Calibra as próximas análises</span>
+              <span className="ar-section__label">Calibra as próximas leituras</span>
             </div>
             <FeedbackPanel
               analysisId={props.analysisId}
@@ -628,7 +533,6 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               eyeshadow={props.feedback.eyeshadow}
               base={props.feedback.base}
               corrections={props.feedback.corrections}
-              aiChanges={props.feedback.aiChanges}
               initialVotes={props.feedback.initialVotes}
             />
           </section>
@@ -648,6 +552,14 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
             />
           </section>
         )}
+
+        {props.isOwner ? (
+          <ConsultantChatInvite
+            analysisId={props.analysisId}
+            consultantName={props.consultantNote?.author}
+            seasonName={props.seasonName}
+          />
+        ) : null}
       </div>
 
       {props.isStaff && (props.staffTech || props.staffReview) && (
@@ -663,12 +575,6 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               {props.staffTech.qualityBand
                 ? ` · Qualidade ${qualityBandLabel[props.staffTech.qualityBand] || props.staffTech.qualityBand}`
                 : ""}
-              {props.staffTech.consultantStatus
-                ? ` · Consultora ${props.staffTech.consultantStatus}${props.staffTech.usedVision ? "+foto" : ""}`
-                : ""}
-              {props.staffTech.consultantError && (
-                <span className="ar-staff-note__error"> {props.staffTech.consultantError}</span>
-              )}
             </div>
           )}
 
@@ -681,6 +587,9 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           )}
         </div>
       )}
-    </>
+        </div>
+        <div className="ar-shell__rail ar-shell__rail--right" aria-hidden />
+      </div>
+    </div>
   );
 }
