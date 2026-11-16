@@ -1,14 +1,21 @@
-# Deploy Cloudflare (legado)
+# Deploy Cloudflare (histórico)
 
-> **Descontinuado para o Glowing.** R2 exigia plano pago. Banco online agora é **Supabase free** — ver [`supabase.md`](./supabase.md).
+Banco online do Glowing é **Supabase**. Não provisione Hyperdrive, Neon nem R2 para o fluxo atual. Guia: [`supabase.md`](./supabase.md).
 
-Estado histórico: preparação Hyperdrive + Postgres. Conta Cloudflare existia; R2 bloqueou no checkout.
+| Opção | Estado |
+|-------|--------|
+| Supabase Postgres + Prisma | Em uso |
+| PostgreSQL + Hyperdrive / Neon | Preparado em 2026-11-15 e **abandonado** |
+| D1 (SQLite) | Nunca. Quebraria enums, JSON e migrations |
+| R2 | Checkout bloqueou no plano free; não é o storage atual |
 
-## Decisão de banco
+O restante deste arquivo registra o que chegou a ser criado. Não é runbook.
 
-| Opção | Usar? | Motivo |
-|-------|-------|--------|
-| **PostgreSQL + Hyperdrive** | **Sim** | Mantém `prisma/` e migrations atuais |
+## Decisão que valia na preparação (não seguir)
+
+| Opção | Na época | Motivo |
+|-------|----------|--------|
+| PostgreSQL + Hyperdrive | Candidato | Mantinha `prisma/` e migrations |
 | D1 (SQLite) | Não | Exigiria reescrever enums/JSON/migrations e retestar tudo |
 
 O Cloudflare **não hospeda o Postgres da aplicação**. Ele oferece:
@@ -17,10 +24,11 @@ O Cloudflare **não hospeda o Postgres da aplicação**. Ele oferece:
 2. **R2** — object storage (fotos no lugar de `uploads/` / Vercel Blob)
 3. **Workers / Pages** — runtime do app (fase 2; ver limites abaixo)
 
-## Fase 0 — agora (feito no repo)
+## Fase 0 — o que ficou no repositório (novembro de 2026)
+
+Naquela preparação o local ainda apontava para Docker em `localhost:5433`. Hoje `npm run db:up` não sobe esse banco.
 
 - Schema continua `provider = "postgresql"`
-- Local: `DATABASE_URL` → Docker `localhost:5433`
 - Arquivos: `.env.cloudflare.example`, `wrangler.jsonc`, `.env.production` (local, gitignored)
 - Cliente Prisma já aceita aliases de URL (Neon/Hyperdrive)
 
@@ -36,14 +44,14 @@ O Cloudflare **não hospeda o Postgres da aplicação**. Ele oferece:
 
 Credenciais: só em `.env.production` (não versionado).
 
-## Fase 1 — o que falta (R2 + app online)
+## Fase 1 — pendência da época (não executar)
 
 1. Ativar R2 (uma vez, no browser):
    [R2 Overview](https://dash.cloudflare.com/a3141ca352baaf12bdc4c24eddbf29af/r2/overview) → aceite o plano free.
 2. Depois avise — criamos o bucket `colometria-uploads` via MCP/API.
 3. App online: ainda pode ser VPS/Docker com `DATABASE_URL` de `.env.production`, ou Workers (OpenNext/vinext) com binding Hyperdrive.
 
-## Fase 2 — app na borda (opcional, depois do banco)
+## Fase 2 — hipótese da época (não executar)
 
 Este app usa **Sharp + TensorFlow/BlazeFace + `maxDuration` alto** na análise. Workers têm limites de CPU/memória/tempo.
 
@@ -57,7 +65,7 @@ Ordem sugerida:
    - R2 para imagens
    - Análise pesada eventualmente em **Cloudflare Containers** ou job fora do Worker
 
-## Variáveis (produção)
+## Variáveis que a preparação pedia
 
 Ver `.env.cloudflare.example`. Mínimo:
 
