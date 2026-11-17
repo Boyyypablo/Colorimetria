@@ -172,7 +172,7 @@ export async function getMessages(
     orderBy: { createdAt: "asc" },
   });
   if (!after) return list.map(toPublicMessage);
-  const idx = list.findIndex((m) => m.id === after);
+  const idx = list.findIndex((m: { id: string }) => m.id === after);
   return (idx >= 0 ? list.slice(idx + 1) : list).map(toPublicMessage);
 }
 

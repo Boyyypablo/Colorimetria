@@ -67,8 +67,8 @@ export async function listPendingReviews(input?: {
   });
 
   return rows
-    .filter((r) => r.thread)
-    .map((r) => toPublic(r, r.thread!.id));
+    .filter((r: (typeof rows)[number]) => Boolean(r.thread))
+    .map((r: (typeof rows)[number]) => toPublic(r, r.thread!.id));
 }
 
 export async function getReview(
