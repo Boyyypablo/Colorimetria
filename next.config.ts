@@ -73,6 +73,14 @@ const nextConfig: NextConfig = {
     "@fal-ai/client",
     "@huggingface/inference",
   ],
+  outputFileTracingIncludes: {
+    "/api/**/*": [
+      "./node_modules/@img/sharp-linux-x64/**/*",
+      "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+      "./node_modules/@img/sharp-linux-arm64/**/*",
+      "./node_modules/@img/sharp-libvips-linux-arm64/**/*",
+    ],
+  },
 };
 
 export default nextConfig;

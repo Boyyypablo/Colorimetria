@@ -159,11 +159,18 @@ export function AnalyzeForm() {
 
     try {
       const res = await fetch("/api/analyses", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error || "Não foi possível concluir a análise.");
+      const data = (await res.json().catch(() => null)) as {
+        error?: string;
+        code?: string;
+        analysis?: { id: string };
+      } | null;
+      if (!res.ok || !data?.analysis?.id) {
+        setErrorMessage(
+          data?.error ||
+            `Não foi possível concluir a análise (erro ${res.status}).`,
+        );
         setFormState("error");
-        if (data.code === "PAYMENT_REQUIRED") setPaidOrderId(null);
+        if (data?.code === "PAYMENT_REQUIRED") setPaidOrderId(null);
         return;
       }
       router.push(`/analyses/${data.analysis.id}`);
