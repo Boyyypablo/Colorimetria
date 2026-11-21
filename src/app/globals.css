@@ -4793,3 +4793,38 @@ a {
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+
+/* ── Telas separadas por aba na análise (/analyses/[id]) ── */
+
+@keyframes arPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ar-panel {
+  animation: arPanelIn 180ms ease-out;
+}
+
+.ar-panel .ar-section {
+  padding-top: 0.75rem;
+}
+
+.ar-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.5rem 0 3rem;
+  border-top: 1px solid color-mix(in srgb, var(--ar-blush, #e6c6bc) 35%, var(--lp-linen, #ede6d8));
+}
+
+.ar-pager__btn {
+  min-width: 120px;
+}

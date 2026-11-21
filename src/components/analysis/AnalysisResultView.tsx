@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { ConsultantReviewForm } from "@/components/ReviewActions";
 import { ConsultantChatInvite } from "@/components/analysis/ConsultantChatInvite";
@@ -105,13 +105,44 @@ function guidanceTone(title: string): "default" | "soft" | "avoid" {
 }
 
 export function AnalysisResultView(props: AnalysisResultViewProps) {
-  const firstAnchor = props.navItems[0]?.href.replace("#", "") ?? "";
-  const [activeAnchor, setActiveAnchor] = useState(firstAnchor);
+  const tabs = props.navItems.map((item) => ({
+    id: item.href.replace("#", ""),
+    label: item.label,
+  }));
+  const firstTab = tabs[0]?.id ?? "leitura";
+  const [activeTab, setActiveTab] = useState(firstTab);
 
-  function scrollTo(id: string) {
-    setActiveAnchor(id);
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  useEffect(() => {
+    const validIds = new Set(props.navItems.map((item) => item.href.replace("#", "")));
+    const applyHash = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (hash && validIds.has(hash)) {
+        setActiveTab(hash);
+      }
+    };
+    const raf = window.requestAnimationFrame(applyHash);
+    window.addEventListener("hashchange", applyHash);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener("hashchange", applyHash);
+    };
+  }, [props.navItems]);
+
+  function openTab(id: string) {
+    setActiveTab(id);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `#${id}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }
+
+  const currentIndex = Math.max(
+    0,
+    tabs.findIndex((t) => t.id === activeTab),
+  );
+  const prevTab = currentIndex > 0 ? tabs[currentIndex - 1] : null;
+  const nextTab =
+    currentIndex < tabs.length - 1 ? tabs[currentIndex + 1] : null;
 
   const paletteUse =
     props.rankedUse.length > 0
@@ -129,20 +160,24 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
   return (
     <div className="ar-stage">
       <div className="ar-stage__wash" aria-hidden />
-      {props.navItems.length > 0 && (
+      {tabs.length > 0 && (
         <nav className="ar-nav" aria-label="Seções da leitura">
-          <div className="ar-nav__track">
-            {props.navItems.map((item) => {
-              const id = item.href.replace("#", "");
-              const isFeedback = id === "feedback";
+          <div className="ar-nav__track" role="tablist">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              const isFeedback = tab.id === "feedback";
               return (
                 <button
-                  key={item.href}
+                  key={tab.id}
+                  id={`tab-${tab.id}`}
                   type="button"
-                  className={`ar-nav__link${activeAnchor === id ? " ar-nav__link--active" : ""}${isFeedback ? " ar-nav__link--cta" : ""}`}
-                  onClick={() => scrollTo(id)}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`panel-${tab.id}`}
+                  className={`ar-nav__link${isActive ? " ar-nav__link--active" : ""}${isFeedback ? " ar-nav__link--cta" : ""}`}
+                  onClick={() => openTab(tab.id)}
                 >
-                  {item.label}
+                  {tab.label}
                 </button>
               );
             })}
@@ -152,8 +187,15 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
       <div className="ar-shell">
         <div className="ar-shell__rail ar-shell__rail--left" aria-hidden />
         <div className="ar-shell__inner">
-
-          <section className="ar-hero">
+          {activeTab === "leitura" && (
+            <div
+              key="leitura"
+              id="panel-leitura"
+              role="tabpanel"
+              aria-labelledby="tab-leitura"
+              className="ar-panel"
+            >
+              <section className="ar-hero">
             <div className="ar-hero__layout">
               <aside className="ar-hero__media">
                 <div className="ar-hero__photo-wrap">
@@ -354,8 +396,18 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                 </p>
               </div>
             )}
+              </div>
+            </div>
+          )}
 
-            {paletteUse.length > 0 && (
+          {activeTab === "paleta" && paletteUse.length > 0 && (
+            <div
+              key="paleta"
+              id="panel-paleta"
+              role="tabpanel"
+              aria-labelledby="tab-paleta"
+              className="ar-panel ar-body"
+            >
               <section id="paleta" className="ar-section">
                 <div className="ar-section__head">
                   <h2 className="ar-section__title">Paleta de cores</h2>
@@ -415,9 +467,17 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                   )}
                 </div>
               </section>
-            )}
+            </div>
+          )}
 
-            {props.coachingBlocks.length > 0 && (
+          {activeTab === "orientacoes" && props.coachingBlocks.length > 0 && (
+            <div
+              key="orientacoes"
+              id="panel-orientacoes"
+              role="tabpanel"
+              aria-labelledby="tab-orientacoes"
+              className="ar-panel ar-body"
+            >
               <section id="orientacoes" className="ar-section">
                 <div className="ar-section__head">
                   <h2 className="ar-section__title">Orientações</h2>
@@ -453,9 +513,17 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                   })}
                 </div>
               </section>
-            )}
+            </div>
+          )}
 
-            {props.skinCorrection && (
+          {activeTab === "cuidados" && props.skinCorrection && (
+            <div
+              key="cuidados"
+              id="panel-cuidados"
+              role="tabpanel"
+              aria-labelledby="tab-cuidados"
+              className="ar-panel ar-body"
+            >
               <section id="cuidados" className="ar-section">
                 <div className="ar-section__head">
                   <h2 className="ar-section__title">Cuidados com a pele</h2>
@@ -486,9 +554,17 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                   <p className="ar-care-note">{props.ethicalNote}</p>
                 )}
               </section>
-            )}
+            </div>
+          )}
 
-            {props.isOwner && props.feedback && (
+          {activeTab === "feedback" && props.isOwner && props.feedback && (
+            <div
+              key="feedback"
+              id="panel-feedback"
+              role="tabpanel"
+              aria-labelledby="tab-feedback"
+              className="ar-panel ar-body"
+            >
               <section
                 id="feedback"
                 className="ar-section"
@@ -513,27 +589,60 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                   initialVotes={props.feedback.initialVotes}
                 />
               </section>
-            )}
+            </div>
+          )}
 
-            {props.isOwner ? (
-              <>
-                <ConsultantReviewBanner
-                  analysisId={props.analysisId}
-                  seasonName={props.seasonName}
-                  canRequestReview={props.canRequestReview}
-                  alreadyInReview={props.statusKey === "NEEDS_REVIEW"}
-                  hasConsultantNote={Boolean(props.consultantNote)}
-                  reviewPriceLabel={props.reviewPriceLabel}
-                  paymentsEnabled={props.paymentsEnabled}
-                />
-                <ConsultantChatInvite
-                  analysisId={props.analysisId}
-                  consultantName={props.consultantNote?.author}
-                  seasonName={props.seasonName}
-                />
-              </>
-            ) : null}
-          </div>
+          {activeTab === "consultora" && props.isOwner && (
+            <div
+              key="consultora"
+              id="panel-consultora"
+              role="tabpanel"
+              aria-labelledby="tab-consultora"
+              className="ar-panel ar-body"
+            >
+              <ConsultantReviewBanner
+                analysisId={props.analysisId}
+                seasonName={props.seasonName}
+                canRequestReview={props.canRequestReview}
+                alreadyInReview={props.statusKey === "NEEDS_REVIEW"}
+                hasConsultantNote={Boolean(props.consultantNote)}
+                reviewPriceLabel={props.reviewPriceLabel}
+                paymentsEnabled={props.paymentsEnabled}
+              />
+              <ConsultantChatInvite
+                analysisId={props.analysisId}
+                consultantName={props.consultantNote?.author}
+                seasonName={props.seasonName}
+              />
+            </div>
+          )}
+
+          {tabs.length > 1 && (
+            <div className="ar-pager" aria-label="Navegação entre seções">
+              <div>
+                {prevTab ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost ar-pager__btn"
+                    onClick={() => openTab(prevTab.id)}
+                  >
+                    ← {prevTab.label}
+                  </button>
+                ) : null}
+              </div>
+              <div>
+                {nextTab ? (
+                  <button
+                    type="button"
+                    className="btn btn-primary ar-pager__btn"
+                    onClick={() => openTab(nextTab.id)}
+                  >
+                    {nextTab.label} →
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          )}
 
           {props.isStaff && (props.staffTech || props.staffReview) && (
             <div className="ar-body ar-staff-panel">

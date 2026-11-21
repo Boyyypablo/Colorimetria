@@ -208,7 +208,7 @@ export function buildAnalysisResultViewProps(input: {
     Boolean(season);
 
   const navItems = [
-    evaluation ? { href: "#leitura", label: "Leitura" } : null,
+    { href: "#leitura", label: "Leitura" },
     useColors.length > 0 ? { href: "#paleta", label: "Paleta" } : null,
     coachingBlocks.length > 0
       ? { href: "#orientacoes", label: "Orientações" }
