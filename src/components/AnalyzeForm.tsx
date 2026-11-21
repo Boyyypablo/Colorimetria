@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ANALYSIS_GOAL_OPTIONS,
@@ -8,10 +8,6 @@ import {
   type AnalysisGoalId,
 } from "@/lib/color/goals";
 import { PHOTO_QUALITY_TIPS } from "@/lib/color/photo-tips";
-import {
-  PaymentCheckout,
-  type PaymentOrderView,
-} from "@/components/payments/PaymentCheckout";
 import { detectFaceInBrowser } from "@/lib/vision/face/browser";
 import { coverFocusPosition } from "@/lib/vision/face/frame";
 
@@ -97,20 +93,14 @@ export function AnalyzeForm() {
     };
   }, [orderIdFromUrl]);
 
-  const onAnalysisPaid = useCallback((order: PaymentOrderView) => {
-    setPaidOrderId(order.id);
-  }, []);
-
   const trimmedIntention = intention.trim();
-  const paymentOk = !paymentsOn || Boolean(paidOrderId);
   const canSubmit =
     Boolean(photoFile) &&
     faceStatus !== "locating" &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
     Boolean(context) &&
-    lgpd &&
-    paymentOk;
+    lgpd;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -224,8 +214,8 @@ export function AnalyzeForm() {
           <em>sua paleta.</em>
         </h1>
         <p className="af-lede">
-          Envie sua foto e conte o que quer trabalhar. O sistema analisa a
-          qualidade automaticamente; a equipe valida quando for necessário.
+          Envie sua foto gratuitamente e conte o que quer trabalhar. Validamos a
+          qualidade da foto primeiro — você só decide liberar a cartela depois.
         </p>
       </div>
 
@@ -444,20 +434,10 @@ export function AnalyzeForm() {
           <p className="pay-box__eyebrow">Crédito disponível</p>
           <p className="pay-box__title">Análise já paga — envie a foto</p>
           <p className="pay-box__hint">
-            Este pagamento ainda não foi usado. Ao enviar, o crédito é consumido
-            automaticamente.
+            Este pagamento ainda não foi usado. Se a foto for aprovada, o
+            crédito é consumido automaticamente.
           </p>
         </div>
-      ) : null}
-
-      {paymentsOn && !paidOrderId ? (
-        <AfSection
-          number="05"
-          title="Pagamento"
-          subtitle="Libera o laudo completo"
-        >
-          <PaymentCheckout sku="ANALYSIS" onPaid={onAnalysisPaid} />
-        </AfSection>
       ) : null}
 
       {errorMessage && <p className="af-error-banner">{errorMessage}</p>}
@@ -469,13 +449,11 @@ export function AnalyzeForm() {
           disabled={!canSubmit}
           onClick={handleSubmit}
         >
-          Enviar para análise
+          Validar foto e gerar leitura
         </button>
         {!canSubmit && (
           <p className="af-submit__hint">
-            {paymentsOn && !paidOrderId
-              ? "Confirme o pagamento da análise para enviar."
-              : "Foto, intenção, áreas, contexto e consentimento LGPD são obrigatórios."}
+            Foto, intenção, áreas, contexto e consentimento LGPD são obrigatórios.
           </p>
         )}
       </div>

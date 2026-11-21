@@ -182,8 +182,8 @@ export function PaymentCheckout({ sku, analysisId, title, onPaid }: Props) {
       <h2 className="pay-box__title">{heading}</h2>
       <p className="pay-box__hint">
         {sku === "ANALYSIS"
-          ? "O pagamento libera o envio da foto e o laudo completo com plano personalizado."
-          : "O pagamento libera o pedido de revisão humana e a fila da consultora."}
+          ? "Foto validada. O pagamento libera a cartela completa, plano personalizado e 7 dias de chat com a consultora."
+          : "O pagamento libera a revisão humana na fila da consultora e mantém o chat particular aberto."}
       </p>
 
       {!order || order.status === "CANCELLED" || order.status === "EXPIRED" ? (
@@ -270,6 +270,11 @@ export function PaymentCheckout({ sku, analysisId, title, onPaid }: Props) {
       )}
 
       {error ? <p className="pay-box__error">{error}</p> : null}
+
+      <p className="pay-box__legal">
+        Garantia de 7 dias (CDC Art. 49): você tem até 7 dias corridos após a
+        compra para solicitar cancelamento e reembolso integral.
+      </p>
     </div>
   );
 }

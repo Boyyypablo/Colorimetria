@@ -42,6 +42,19 @@ export async function findReusableOrder(input: {
   const now = new Date();
 
   if (input.sku === "ANALYSIS") {
+    if (input.analysisId) {
+      const paidForAnalysis = await prisma.paymentOrder.findFirst({
+        where: {
+          userId: input.userId,
+          sku: "ANALYSIS",
+          status: "PAID",
+          analysisId: input.analysisId,
+        },
+        orderBy: { paidAt: "desc" },
+      });
+      if (paidForAnalysis) return paidForAnalysis;
+    }
+
     const paidOrphan = await prisma.paymentOrder.findFirst({
       where: {
         userId: input.userId,
@@ -80,6 +93,20 @@ export async function findReusableOrder(input: {
   }
 
   if (input.sku === "ANALYSIS") {
+    if (input.analysisId) {
+      const openForAnalysis = await prisma.paymentOrder.findFirst({
+        where: {
+          userId: input.userId,
+          sku: "ANALYSIS",
+          analysisId: input.analysisId,
+          status: { in: ["PENDING", "AWAITING_PAYMENT"] },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+      if (openForAnalysis) return openForAnalysis;
+    }
+
     const open = await prisma.paymentOrder.findFirst({
       where: {
         userId: input.userId,
@@ -115,6 +142,16 @@ export async function createOrReusePaymentOrder(
     analysisId: input.analysisId,
   });
   if (reusable && (reusable.status === "PAID" || reusable.invoiceUrl || reusable.pixCopyPaste)) {
+    if (
+      input.sku === "ANALYSIS" &&
+      input.analysisId &&
+      !reusable.analysisId
+    ) {
+      return prisma.paymentOrder.update({
+        where: { id: reusable.id },
+        data: { analysisId: input.analysisId },
+      });
+    }
     return reusable;
   }
 
@@ -145,7 +182,7 @@ export async function createOrReusePaymentOrder(
       status: "PENDING",
       asaasCustomerId: customer.id,
       billingType,
-      analysisId: input.sku === "REVIEW" ? input.analysisId! : null,
+      analysisId: input.analysisId ?? null,
       expiresAt,
     },
   });
@@ -359,4 +396,30 @@ export function serializePaymentOrder(order: PaymentOrder) {
     expiresAt: order.expiresAt,
     createdAt: order.createdAt,
   };
+}
+
+export async function listUserPaymentHistory(userId: string) {
+  const orders = await prisma.paymentOrder.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+  const nowMs = Date.now();
+  return orders.map((o) => {
+    const isOpen =
+      (o.status === "AWAITING_PAYMENT" || o.status === "PENDING") &&
+      (!o.expiresAt || o.expiresAt.getTime() > nowMs);
+    return {
+      id: o.id,
+      sku: o.sku,
+      amountCents: o.amountCents,
+      status: o.status,
+      billingType: o.billingType,
+      invoiceUrl: o.invoiceUrl,
+      analysisId: o.analysisId,
+      paidAt: o.paidAt ? o.paidAt.toISOString() : null,
+      createdAt: o.createdAt.toISOString(),
+      canResume: Boolean(isOpen && o.invoiceUrl),
+    };
+  });
 }

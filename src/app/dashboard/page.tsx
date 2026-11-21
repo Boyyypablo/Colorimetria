@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import {
+  getUserUnlockedAnalysisIds,
+  photoNeedsRetake,
+} from "@/lib/payments/access";
+import { publicPaymentsConfig } from "@/lib/payments/config";
 
 const statusLabel: Record<string, string> = {
   PENDING: "Em preparação",
@@ -21,7 +26,10 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [analyses, orphanPayments] = await Promise.all([
+  const paymentsCfg = publicPaymentsConfig();
+  const paymentsOn = paymentsCfg.enabled;
+
+  const [analyses, orphanPayments, unlockedIds] = await Promise.all([
     prisma.analysis.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
@@ -37,6 +45,9 @@ export default async function DashboardPage() {
       orderBy: { paidAt: "desc" },
       take: 5,
     }),
+    paymentsOn
+      ? getUserUnlockedAnalysisIds(session.user.id)
+      : Promise.resolve(new Set<string>()),
   ]);
 
   return (
@@ -59,6 +70,13 @@ export default async function DashboardPage() {
             </Link>
           ) : null}
         </div>
+
+        {!paymentsOn ? (
+          <p className="pay-beta-note">
+            Acesso beta gratuito · durante os testes, a liberação da cartela e
+            da revisão está aberta sem cobrança.
+          </p>
+        ) : null}
 
         {orphanPayments.length > 0 ? (
           <div className="dash-leituras__orphan" role="status">
@@ -98,8 +116,8 @@ export default async function DashboardPage() {
               Ainda não há cartelas por aqui.
             </h2>
             <p className="dash-leituras__empty-text">
-              Envie uma foto com boa luz natural e receba sua cartela de cores
-              com plano personalizado.
+              Envie uma foto com boa luz natural gratuitamente para validarmos a
+              qualidade e preparar sua cartela de cores.
             </p>
             <Link href="/analyze" className="btn btn-primary dash-leituras__cta">
               Enviar minha foto
@@ -108,7 +126,21 @@ export default async function DashboardPage() {
         ) : (
           <ul className="dash-leituras__list">
             {analyses.map((a) => {
-              const season = a.overrideSeason || a.season;
+              const unlocked = !paymentsOn || unlockedIds.has(a.id);
+              const needsRetake = !unlocked && photoNeedsRetake(a.photoQuality);
+              const season = unlocked ? a.overrideSeason || a.season : null;
+              const title = unlocked
+                ? season?.namePt || "Em preparação"
+                : needsRetake
+                  ? "Foto precisa de ajuste"
+                  : "Leitura pronta · destravar cartela";
+
+              const badgeText = unlocked
+                ? contextLabel[a.context] || a.context
+                : needsRetake
+                  ? "Trocar foto grátis"
+                  : `Liberar · ${paymentsCfg.analysisPriceLabel}`;
+
               return (
                 <li key={a.id}>
                   <Link
@@ -117,22 +149,29 @@ export default async function DashboardPage() {
                   >
                     <div>
                       <p className="dash-leituras__card-title font-script">
-                        {season?.namePt || "Em preparação"}
+                        {title}
                       </p>
                       <p className="dash-leituras__card-meta">
-                        {new Date(a.createdAt).toLocaleString("pt-BR")} ·{" "}
-                        {statusLabel[a.status] || a.status}
-                        {a.consultantApproved
-                          ? " · Validada pela consultora"
-                          : ""}
-                        {a.status === "PENDING"
-                          ? " · em geral leva poucos minutos"
-                          : ""}
+                        {new Date(a.createdAt).toLocaleString("pt-BR")}
+                        {unlocked ? (
+                          <>
+                            {" · "}
+                            {statusLabel[a.status] || a.status}
+                            {a.consultantApproved
+                              ? " · Validada pela consultora"
+                              : ""}
+                            {a.status === "PENDING"
+                              ? " · em geral leva poucos minutos"
+                              : ""}
+                          </>
+                        ) : needsRetake ? (
+                          " · Envie outra foto sem custo antes de pagar"
+                        ) : (
+                          " · Foto validada — abra para liberar sua cartela"
+                        )}
                       </p>
                     </div>
-                    <span className="dash-leituras__badge">
-                      {contextLabel[a.context] || a.context}
-                    </span>
+                    <span className="dash-leituras__badge">{badgeText}</span>
                   </Link>
                 </li>
               );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { paymentsEnabled } from "@/lib/payments/config";
+import { resolveAnalysisAccess } from "@/lib/payments/access";
 import { assertReviewOrderPaid } from "@/lib/payments/orders";
 import { readUpload } from "@/lib/storage/local";
 
@@ -38,7 +39,28 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
-  return NextResponse.json({ analysis });
+  if (!isStaff) {
+    const access = await resolveAnalysisAccess({
+      analysisId: analysis.id,
+      userId: analysis.userId,
+      photoQuality: analysis.photoQuality,
+    });
+    if (access.state !== "unlocked") {
+      return NextResponse.json({
+        analysis: {
+          id: analysis.id,
+          status: analysis.status,
+          imagePath: analysis.imagePath,
+          photoQuality: analysis.photoQuality,
+          createdAt: analysis.createdAt,
+        },
+        accessState: access.state,
+        locked: true,
+      });
+    }
+  }
+
+  return NextResponse.json({ analysis, accessState: "unlocked", locked: false });
 }
 
 export async function PATCH(request: Request, { params }: Params) {

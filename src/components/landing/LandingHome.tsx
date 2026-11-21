@@ -11,8 +11,15 @@ import {
 import { LandingServiceCard } from "@/components/landing/LandingServiceCard";
 import { GlowingLogo } from "@/components/GlowingLogo";
 
+type PaymentsConfig = {
+  enabled: boolean;
+  analysisPriceLabel: string;
+  reviewPriceLabel: string;
+};
+
 type Props = {
   loggedIn: boolean;
+  paymentsConfig: PaymentsConfig;
   signOutSlot?: ReactNode;
 };
 
@@ -27,56 +34,59 @@ const NAV = [
 const PRICE_FLOW = [
   {
     n: "01",
-    title: "Você envia a foto",
-    desc: "Cadastro, intenção e uma selfie com boa luz. Sem compromisso até o pagamento da cartela.",
+    title: "Você envia a foto grátis",
+    desc: "Cadastro, intenção e uma selfie com boa luz. Validamos a qualidade — se a foto precisar de ajuste, você troca sem pagar nada.",
   },
   {
     n: "02",
-    title: "Paga a cartela",
-    desc: "Pix ou cartão liberam a análise completa: estação, eixos e plano personalizado.",
+    title: "Libera a cartela",
+    desc: "Com a foto aprovada, Pix ou cartão destravam sua estação, eixos, paleta e plano personalizado.",
   },
   {
     n: "03",
-    title: "Recebe o resultado",
-    desc: "Sua cartela fica salva em Minhas cartelas. Dá para voltar quando quiser.",
+    title: "7 dias de chat inclusos",
+    desc: "Sua cartela fica salva em Minhas cartelas e você ganha 7 dias de conversa particular com a consultora.",
   },
   {
     n: "04",
-    title: "Revisão (opcional)",
-    desc: "Se quiser olho humano, paga a revisão e a consultora entra na fila do seu caso.",
+    title: "Revisão humana (opcional)",
+    desc: "Se quiser segundo olhar na fila da consultora ou continuar o chat após 7 dias, basta contratar a revisão.",
   },
 ] as const;
 
-const PRICE_SKUS = [
-  {
-    id: "analysis",
-    tag: "Essencial",
-    title: "Cartela de cores",
-    price: "R$ 67",
-    note: "pagamento único",
-    points: [
-      "Análise da foto e estação (12 cartelas)",
-      "Eixos: temperatura, valor, croma e contraste",
-      "Plano personalizado para pele, roupa e make",
-      "Histórico em Minhas cartelas",
-    ],
-    cta: "Quero minha cartela",
-  },
-  {
-    id: "review",
-    tag: "Com consultora",
-    title: "Revisão humana",
-    price: "R$ 129",
-    note: "após a cartela",
-    points: [
-      "Consultora valida ou ajusta a estação",
-      "Notas e orientação no seu caso",
-      "Fila dedicada no desk da Glowing",
-      "Ideal quando a foto pede segundo olhar",
-    ],
-    cta: "Quero revisão",
-  },
-] as const;
+function buildPriceSkus(cfg: PaymentsConfig) {
+  return [
+    {
+      id: "analysis" as const,
+      tag: "Essencial",
+      title: "Cartela de cores",
+      price: cfg.analysisPriceLabel,
+      note: "pagamento único",
+      points: [
+        "Validação gratuita da foto antes de pagar",
+        "Análise da foto e estação (12 cartelas)",
+        "Eixos: temperatura, valor, croma e contraste",
+        "Plano personalizado para pele, roupa e make",
+        "7 dias de chat com a consultora inclusos",
+      ],
+      cta: "Quero minha cartela",
+    },
+    {
+      id: "review" as const,
+      tag: "Com consultora",
+      title: "Revisão humana",
+      price: cfg.reviewPriceLabel,
+      note: "após a cartela",
+      points: [
+        "Consultora valida ou ajusta a estação",
+        "Notas e orientação sob medida no seu caso",
+        "Fila dedicada no desk da Glowing",
+        "Continuidade do chat particular após os 7 dias",
+      ],
+      cta: "Quero revisão",
+    },
+  ];
+}
 
 const SERVICES = [
   {
@@ -142,12 +152,13 @@ const STRIPS = [
   { img: LANDING_IMAGES.stripColor, label: "Colorimetria" },
 ] as const;
 
-export function LandingHome({ loggedIn, signOutSlot }: Props) {
+export function LandingHome({ loggedIn, paymentsConfig, signOutSlot }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const primaryHref = loggedIn ? "/analyze" : "/register";
   const primaryLabel = loggedIn ? "Nova cartela" : "Começar minha cartela";
+  const priceSkus = buildPriceSkus(paymentsConfig);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -396,8 +407,15 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
             ))}
           </ol>
 
+          {!paymentsConfig.enabled ? (
+            <p className="pay-beta-note mb-8">
+              Acesso beta gratuito · durante esta fase de testes, a liberação da
+              cartela e da revisão está aberta sem cobrança.
+            </p>
+          ) : null}
+
           <div className="lp-prices__skus">
-            {PRICE_SKUS.map((sku) => (
+            {priceSkus.map((sku) => (
               <article
                 key={sku.id}
                 className={`lp-prices__sku${sku.id === "review" ? " lp-prices__sku--accent" : ""}`}
@@ -435,7 +453,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
 
           <p className="lp-prices__footnote">
             A revisão não substitui a cartela: ela aprofunda o laudo já pago.
-            Valores em reais; cobrança segura.
+            Garantia de 7 dias (CDC Art. 49) · valores em reais · cobrança segura.
           </p>
         </div>
       </section>
@@ -464,10 +482,10 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               <em className="text-[var(--lp-terracotta)]">Consultora</em>
             </h2>
             <p className="lp-prose mb-6">
-              Análise sazonal por imagem, recomendações e simulação visual —
-              na interseção entre a ciência das cores e a arte de se apresentar.
-              Cada pessoa tem uma linguagem visual única esperando para ser
-              descoberta.
+              Análise sazonal por imagem, paleta sob medida e orientações
+              práticas — na interseção entre a ciência das cores e a arte de se
+              apresentar. Cada pessoa tem uma linguagem visual única esperando
+              para ser descoberta.
             </p>
             <p className="lp-prose mb-10">
               Envie uma foto, conte o que quer trabalhar e receba um plano
@@ -516,7 +534,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
       </section>
 
       {/* Visual strip */}
-      <section className="lp-strip" aria-label="Looks">
+      <section className="lp-strip" aria-label="Galeria editorial">
         {STRIPS.map(({ img, label }) => (
           <div key={label} className="lp-strip__item group">
             <Image
@@ -563,7 +581,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
           )}
         </div>
         <div className="lp-cta__meta">
-          <p>Cartela a partir de R$ 67</p>
+          <p>Cartela a partir de {paymentsConfig.analysisPriceLabel}</p>
           <p>Foto privada · LGPD</p>
           <p>12 estações</p>
         </div>

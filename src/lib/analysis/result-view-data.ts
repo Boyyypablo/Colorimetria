@@ -14,7 +14,7 @@ import type {
   AnalysisResultViewProps,
   RecItem,
 } from "@/components/analysis/AnalysisResultView";
-import { getVtoRuntimeInfo } from "@/lib/vto/simulate";
+import { publicPaymentsConfig } from "@/lib/payments/config";
 
 const contextLabel: Record<string, string> = {
   casual: "Casual",
@@ -152,16 +152,9 @@ export function buildAnalysisResultViewProps(input: {
 
   const confidenceUi =
     analysis.confidence != null ? formatConfidence(analysis.confidence) : null;
-  const vto = getVtoRuntimeInfo();
+  const paymentsCfg = publicPaymentsConfig();
   const useColors = rec?.useColors || [];
   const avoidColors = rec?.avoidColors || [];
-
-  const simulationColors = [
-    ...(rec?.rankedUse || []).map((c) => c.hex),
-    ...useColors,
-    ...(rec?.clothing || []).map((c) => c.hex),
-    ...(rec?.lipstick || []).map((c) => c.hex),
-  ].filter((hex, i, arr) => Boolean(hex) && arr.indexOf(hex) === i);
 
   const contextKey =
     analysis.context === "trabalho" || analysis.context === "noite"
@@ -207,18 +200,12 @@ export function buildAnalysisResultViewProps(input: {
     .filter(([, tips]) => (tips || []).length > 0)
     .map(([title, tips]) => ({ title, tips: [...(tips || [])] }));
 
-  /* Looks sugeridos: ocultos na UI por enquanto (design fraco). */
-  const lookGroups: Array<{ title: string; items: RecItem[] }> = [];
-
   const feedbackAvailable =
     isOwner &&
     (analysis.status === "READY" ||
       analysis.status === "NEEDS_REVIEW" ||
       analysis.status === "APPROVED") &&
     Boolean(season);
-
-  const simulationAvailable =
-    isOwner && simulationColors.length > 0 && vto.provider === "mock";
 
   const navItems = [
     evaluation ? { href: "#leitura", label: "Leitura" } : null,
@@ -228,7 +215,6 @@ export function buildAnalysisResultViewProps(input: {
       : null,
     skinCorrection ? { href: "#cuidados", label: "Cuidados" } : null,
     feedbackAvailable ? { href: "#feedback", label: "Feedback" } : null,
-    simulationAvailable ? { href: "#simulacao", label: "Simulação" } : null,
     isOwner ? { href: "#consultora", label: "Consultora" } : null,
   ].filter(Boolean) as Array<{ href: string; label: string }>;
 
@@ -290,7 +276,6 @@ export function buildAnalysisResultViewProps(input: {
       (skinCorrection
         ? "Não é diagnóstico dermatológico nem substitui consultoria presencial."
         : null),
-    lookGroups,
     navItems,
     isOwner,
     isStaff,
@@ -298,13 +283,8 @@ export function buildAnalysisResultViewProps(input: {
     qualityWarnings: isStaff ? quality?.warnings || [] : [],
     qualityFailedTips: quality?.failedTips || [],
     canRequestReview: isOwner && analysis.status === "READY",
-    simulation: simulationAvailable
-      ? {
-          colors: simulationColors,
-          vtoProvider: vto.provider,
-          aiReady: vto.aiReady,
-        }
-      : null,
+    paymentsEnabled: paymentsCfg.enabled,
+    reviewPriceLabel: paymentsCfg.reviewPriceLabel,
     feedback: feedbackAvailable
       ? {
           seasonName: season!.namePt,

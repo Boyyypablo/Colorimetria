@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { ConsultantReviewForm } from "@/components/ReviewActions";
 import { ConsultantChatInvite } from "@/components/analysis/ConsultantChatInvite";
@@ -55,18 +54,14 @@ export type AnalysisResultViewProps = {
     items: Array<{ hex: string; label: string; role: string; why: string }>;
   } | null;
   ethicalNote: string | null;
-  lookGroups: Array<{ title: string; items: RecItem[] }>;
   navItems: Array<{ href: string; label: string }>;
   isOwner: boolean;
   isStaff: boolean;
   qualityWarnings: string[];
   qualityFailedTips: string[];
   canRequestReview: boolean;
-  simulation: {
-    colors: string[];
-    vtoProvider: "mock" | "fal" | "gemini" | "huggingface";
-    aiReady: boolean;
-  } | null;
+  paymentsEnabled: boolean;
+  reviewPriceLabel: string;
   feedback: {
     seasonName: string;
     clothing: RecItem[];
@@ -520,25 +515,6 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
               </section>
             )}
 
-            {props.isOwner &&
-              props.simulation &&
-              props.simulation.colors.length > 0 && (
-                <section id="simulacao" className="ar-section">
-                  <div className="ar-section__head">
-                    <h2 className="ar-section__title">Simulação visual</h2>
-                    <span className="ar-section__label">
-                      Experimente na sua foto
-                    </span>
-                  </div>
-                  <SimulationPanel
-                    analysisId={props.analysisId}
-                    colors={props.simulation.colors}
-                    vtoProvider={props.simulation.vtoProvider}
-                    aiReady={props.simulation.aiReady}
-                  />
-                </section>
-              )}
-
             {props.isOwner ? (
               <>
                 <ConsultantReviewBanner
@@ -547,6 +523,8 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
                   canRequestReview={props.canRequestReview}
                   alreadyInReview={props.statusKey === "NEEDS_REVIEW"}
                   hasConsultantNote={Boolean(props.consultantNote)}
+                  reviewPriceLabel={props.reviewPriceLabel}
+                  paymentsEnabled={props.paymentsEnabled}
                 />
                 <ConsultantChatInvite
                   analysisId={props.analysisId}

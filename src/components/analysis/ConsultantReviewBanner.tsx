@@ -10,6 +10,8 @@ type Props = {
   canRequestReview: boolean;
   alreadyInReview: boolean;
   hasConsultantNote: boolean;
+  reviewPriceLabel?: string;
+  paymentsEnabled?: boolean;
 };
 
 const PHOTOS = [
@@ -36,6 +38,8 @@ export function ConsultantReviewBanner({
   canRequestReview,
   alreadyInReview,
   hasConsultantNote,
+  reviewPriceLabel = "R$ 129",
+  paymentsEnabled = true,
 }: Props) {
   const seasonBit = seasonName ? ` de ${seasonName}` : "";
   const lead = hasConsultantNote
@@ -69,7 +73,10 @@ export function ConsultantReviewBanner({
         </h2>
         <p className="ar-review-banner__lead">{lead}</p>
         {!hasConsultantNote ? (
-          <p className="ar-review-banner__price">Revisão humana · R$&nbsp;129</p>
+          <p className="ar-review-banner__price">
+            Revisão humana · {reviewPriceLabel}
+            {!paymentsEnabled ? " (gratuita no beta)" : ""}
+          </p>
         ) : null}
         {alreadyInReview ? (
           <p className="ar-review-banner__status">Seu pedido já está na fila.</p>

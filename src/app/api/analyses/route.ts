@@ -13,6 +13,7 @@ import {
 } from "@/lib/knowledge/explain";
 import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
 import { paymentsEnabled } from "@/lib/payments/config";
+import { photoNeedsRetake } from "@/lib/payments/access";
 import {
   assertAnalysisOrderReady,
   consumeAnalysisOrder,
@@ -67,30 +68,16 @@ export async function POST(request: Request) {
   const paymentOrderId = String(form.get("paymentOrderId") || "").trim() || null;
 
   let paidAnalysisOrderId: string | null = null;
-  if (paymentsEnabled()) {
-    if (!paymentOrderId) {
-      return NextResponse.json(
-        { error: "Pagamento da análise necessário antes do envio.", code: "PAYMENT_REQUIRED" },
-        { status: 402 },
-      );
-    }
+  if (paymentsEnabled() && paymentOrderId) {
     try {
       const order = await assertAnalysisOrderReady({
         userId: session.user.id,
         orderId: paymentOrderId,
       });
       paidAnalysisOrderId = order.id;
-    } catch (err) {
-      return NextResponse.json(
-        {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Pagamento da análise inválido ou não confirmado.",
-          code: "PAYMENT_REQUIRED",
-        },
-        { status: 402 },
-      );
+    } catch {
+      // Crédito inválido/já usado — permite gerar prévia gratuita e destravar depois.
+      paidAnalysisOrderId = null;
     }
   }
 
@@ -137,28 +124,6 @@ export async function POST(request: Request) {
       intention,
     },
   });
-
-  if (paidAnalysisOrderId) {
-    try {
-      await consumeAnalysisOrder({
-        orderId: paidAnalysisOrderId,
-        userId: session.user.id,
-        analysisId: pending.id,
-      });
-    } catch (err) {
-      await prisma.analysis.delete({ where: { id: pending.id } }).catch(() => {});
-      return NextResponse.json(
-        {
-          error:
-            err instanceof Error
-              ? err.message
-              : "Não foi possível vincular o pagamento à análise.",
-          code: "PAYMENT_REQUIRED",
-        },
-        { status: 402 },
-      );
-    }
-  }
 
   try {
     const result = applyPhotoIntake(
@@ -226,6 +191,31 @@ export async function POST(request: Request) {
       });
     } catch {
       // ignore duplicate / schema lag
+    }
+
+    let unlockedByOrder = false;
+    if (paidAnalysisOrderId && !photoNeedsRetake(result.photoQuality)) {
+      try {
+        await consumeAnalysisOrder({
+          orderId: paidAnalysisOrderId,
+          userId: session.user.id,
+          analysisId: analysis.id,
+        });
+        unlockedByOrder = true;
+      } catch {
+        unlockedByOrder = false;
+      }
+    }
+
+    if (paymentsEnabled() && !unlockedByOrder) {
+      return NextResponse.json({
+        analysis: {
+          id: analysis.id,
+          status: analysis.status,
+          photoQuality: analysis.photoQuality,
+        },
+        locked: true,
+      });
     }
 
     return NextResponse.json({ analysis });

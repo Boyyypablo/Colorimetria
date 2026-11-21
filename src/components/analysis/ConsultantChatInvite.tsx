@@ -12,8 +12,8 @@ type ChatMessage = {
 
 type ChatAccess = {
   canSend: boolean;
-  reason: "trial" | "paid" | "expired" | "payments_off";
-  trialEndsAt: string;
+  reason: "trial" | "paid" | "expired" | "analysis_unpaid" | "payments_off";
+  trialEndsAt: string | null;
   daysLeft: number;
 };
 
@@ -27,11 +27,14 @@ function accessNote(access: ChatAccess | null): string | null {
   if (!access) return null;
   if (access.reason === "trial") {
     const days = access.daysLeft === 1 ? "1 dia" : `${access.daysLeft} dias`;
-    return `Chat incluso por ${days}. Depois, a conversa continua com o pagamento da revisão.`;
+    return `Chat incluso por ${days} (7 dias a partir da liberação da cartela). Depois, a conversa continua com o pagamento da revisão.`;
   }
   if (access.reason === "paid") return "Conversa liberada com a revisão paga.";
+  if (access.reason === "analysis_unpaid") {
+    return "Libere sua cartela primeiro para ativar os 7 dias de chat com a consultora.";
+  }
   if (access.reason === "expired") {
-    return "Sua semana de chat acabou. Pague a revisão para continuar falando com a consultora.";
+    return "Seus 7 dias de chat inclusos terminaram. Pague a revisão para continuar falando com a consultora.";
   }
   return null;
 }
@@ -126,10 +129,10 @@ export function ConsultantChatInvite({
         Um canal só seu com {who}
       </h2>
       <p className="ar-concierge__lead">
-        Quer afinar a cartela, remodelar um look ou receber orientações sob
-        medida para cabelo, maquiagem e guarda-roupa{seasonBit}? A conversa
-        fica aberta por uma semana depois do cadastro. Depois disso, segue
-        com o pagamento da revisão.
+        Quer afinar a cartela ou receber orientações sob medida para cabelo,
+        maquiagem e guarda-roupa{seasonBit}? Você tem 7 dias de conversa
+        inclusos após liberar sua cartela. Depois disso, segue com o pagamento
+        da revisão.
       </p>
       {accessNote(access) ? (
         <p className="ar-concierge__lead">{accessNote(access)}</p>

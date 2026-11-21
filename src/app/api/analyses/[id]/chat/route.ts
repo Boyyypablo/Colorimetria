@@ -43,7 +43,7 @@ export async function GET(
 
   const [messages, chatAccess] = await Promise.all([
     listClientChat(id),
-    resolveChatAccess(session.user.id),
+    resolveChatAccess(session.user.id, id),
   ]);
   return NextResponse.json({ messages, access: chatAccess });
 }
@@ -93,12 +93,15 @@ export async function POST(
     );
   }
 
-  const chatAccess = await resolveChatAccess(session.user.id);
+  const chatAccess = await resolveChatAccess(session.user.id, id);
   if (!chatAccess.canSend) {
+    const msg =
+      chatAccess.reason === "analysis_unpaid"
+        ? "Libere sua cartela primeiro para ativar os 7 dias de chat com a consultora."
+        : "Seus 7 dias de chat após a cartela terminaram. Pague a revisão para continuar a conversa.";
     return NextResponse.json(
       {
-        error:
-          "Sua semana de chat acabou. Pague a revisão para continuar a conversa.",
+        error: msg,
         code: "CHAT_PAYMENT_REQUIRED",
         access: chatAccess,
       },

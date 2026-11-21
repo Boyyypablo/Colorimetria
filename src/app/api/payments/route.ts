@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
 import { AsaasError, normalizeCpfCnpj } from "@/lib/payments/asaas";
+import { photoNeedsRetake } from "@/lib/payments/access";
 import { paymentsEnabled } from "@/lib/payments/config";
 import {
   createOrReusePaymentOrder,
@@ -39,6 +40,19 @@ export async function GET(request: Request) {
     return NextResponse.json({
       enabled: paymentsEnabled(),
       order: order ? serializePaymentOrder(order) : null,
+    });
+  }
+
+  const all = searchParams.get("all") === "1";
+  if (all) {
+    const history = await prisma.paymentOrder.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
+    return NextResponse.json({
+      enabled: paymentsEnabled(),
+      orders: history.map(serializePaymentOrder),
     });
   }
 
@@ -93,6 +107,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CPF/CNPJ inválido." }, { status: 400 });
   }
 
+  if (sku === "ANALYSIS" && analysisId) {
+    const analysis = await prisma.analysis.findUnique({ where: { id: analysisId } });
+    if (!analysis || analysis.userId !== session.user.id) {
+      return NextResponse.json({ error: "Análise não encontrada." }, { status: 404 });
+    }
+    if (photoNeedsRetake(analysis.photoQuality)) {
+      return NextResponse.json(
+        {
+          error:
+            "Esta foto precisa de ajuste antes do pagamento. Envie outra foto gratuitamente.",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   if (sku === "REVIEW") {
     if (!analysisId) {
       return NextResponse.json(
@@ -124,7 +154,7 @@ export async function POST(request: Request) {
       userName: user.name,
       asaasCustomerId: user.asaasCustomerId,
       sku,
-      analysisId: sku === "REVIEW" ? analysisId : null,
+      analysisId: analysisId || null,
       cpfCnpj,
       billingType: billingType || "PIX",
     });
