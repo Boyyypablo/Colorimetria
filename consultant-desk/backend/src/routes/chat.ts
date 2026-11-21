@@ -7,6 +7,11 @@ import {
   checkPersonalContact,
   PII_USER_MESSAGE,
 } from "../services/pii-filter.js";
+import { readUserUpload } from "../lib/read-user-upload.js";
+import {
+  getClientProfileForThread,
+  getThreadAvatarPath,
+} from "../services/client-profile.js";
 import {
   archiveThread,
   enqueueMessage,
@@ -95,10 +100,32 @@ export const chatRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: "Cursor inválido." });
     }
     await markThreadRead(idParsed.data);
+    const clientProfile = await getClientProfileForThread(idParsed.data);
     return {
       thread,
+      clientProfile,
       messages: await getMessages(idParsed.data, afterParsed.data || undefined),
     };
+  });
+
+  app.get("/threads/:threadId/client-avatar", async (request, reply) => {
+    const { threadId: rawId } = request.params as { threadId: string };
+    const idParsed = threadIdSchema.safeParse(rawId);
+    if (!idParsed.success) {
+      return reply.code(400).send({ error: "Thread inválida." });
+    }
+    const avatarPath = await getThreadAvatarPath(idParsed.data);
+    if (!avatarPath) {
+      return reply.code(404).send({ error: "Sem foto." });
+    }
+    const file = await readUserUpload(avatarPath);
+    if (!file) {
+      return reply.code(404).send({ error: "Foto não encontrada." });
+    }
+    return reply
+      .header("Content-Type", file.contentType)
+      .header("Cache-Control", "private, max-age=300")
+      .send(file.buffer);
   });
 
   app.get("/threads/:threadId/stream", async (request, reply) => {

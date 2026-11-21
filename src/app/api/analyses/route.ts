@@ -12,6 +12,11 @@ import {
   type EvaluationView,
 } from "@/lib/knowledge/explain";
 import { applyPhotoIntake, parsePhotoIntake } from "@/lib/color/photo-intake";
+import { paymentsEnabled } from "@/lib/payments/config";
+import {
+  assertAnalysisOrderReady,
+  consumeAnalysisOrder,
+} from "@/lib/payments/orders";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { clientSafeErrorMessage } from "@/lib/security/redact";
 
@@ -59,6 +64,35 @@ export async function POST(request: Request) {
   const consent = form.get("biometricConsent") === "true";
   const goals = parseAnalysisGoals(form.getAll("goals"));
   const intention = parseIntention(form.get("intention"));
+  const paymentOrderId = String(form.get("paymentOrderId") || "").trim() || null;
+
+  let paidAnalysisOrderId: string | null = null;
+  if (paymentsEnabled()) {
+    if (!paymentOrderId) {
+      return NextResponse.json(
+        { error: "Pagamento da análise necessário antes do envio.", code: "PAYMENT_REQUIRED" },
+        { status: 402 },
+      );
+    }
+    try {
+      const order = await assertAnalysisOrderReady({
+        userId: session.user.id,
+        orderId: paymentOrderId,
+      });
+      paidAnalysisOrderId = order.id;
+    } catch (err) {
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Pagamento da análise inválido ou não confirmado.",
+          code: "PAYMENT_REQUIRED",
+        },
+        { status: 402 },
+      );
+    }
+  }
 
   if (!consent) {
     return NextResponse.json(
@@ -103,6 +137,28 @@ export async function POST(request: Request) {
       intention,
     },
   });
+
+  if (paidAnalysisOrderId) {
+    try {
+      await consumeAnalysisOrder({
+        orderId: paidAnalysisOrderId,
+        userId: session.user.id,
+        analysisId: pending.id,
+      });
+    } catch (err) {
+      await prisma.analysis.delete({ where: { id: pending.id } }).catch(() => {});
+      return NextResponse.json(
+        {
+          error:
+            err instanceof Error
+              ? err.message
+              : "Não foi possível vincular o pagamento à análise.",
+          code: "PAYMENT_REQUIRED",
+        },
+        { status: 402 },
+      );
+    }
+  }
 
   try {
     const result = applyPhotoIntake(

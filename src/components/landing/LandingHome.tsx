@@ -19,8 +19,63 @@ type Props = {
 const NAV = [
   { href: "#servicos", label: "Serviços" },
   { href: "#como-funciona", label: "Como funciona" },
+  { href: "#precos", label: "Preços" },
   { href: "#sobre", label: "Sobre" },
   { href: "#comecar", label: "Começar" },
+] as const;
+
+const PRICE_FLOW = [
+  {
+    n: "01",
+    title: "Você envia a foto",
+    desc: "Cadastro, intenção e uma selfie com boa luz. Sem compromisso até o pagamento da cartela.",
+  },
+  {
+    n: "02",
+    title: "Paga a cartela",
+    desc: "Pix ou cartão liberam a análise completa: estação, eixos e plano personalizado.",
+  },
+  {
+    n: "03",
+    title: "Recebe o resultado",
+    desc: "Sua cartela fica salva em Minhas cartelas. Dá para voltar quando quiser.",
+  },
+  {
+    n: "04",
+    title: "Revisão (opcional)",
+    desc: "Se quiser olho humano, paga a revisão e a consultora entra na fila do seu caso.",
+  },
+] as const;
+
+const PRICE_SKUS = [
+  {
+    id: "analysis",
+    tag: "Essencial",
+    title: "Cartela de cores",
+    price: "R$ 67",
+    note: "pagamento único",
+    points: [
+      "Análise da foto e estação (12 cartelas)",
+      "Eixos: temperatura, valor, croma e contraste",
+      "Plano personalizado para pele, roupa e make",
+      "Histórico em Minhas cartelas",
+    ],
+    cta: "Quero minha cartela",
+  },
+  {
+    id: "review",
+    tag: "Com consultora",
+    title: "Revisão humana",
+    price: "R$ 129",
+    note: "após a cartela",
+    points: [
+      "Consultora valida ou ajusta a estação",
+      "Notas e orientação no seu caso",
+      "Fila dedicada no desk da Glowing",
+      "Ideal quando a foto pede segundo olhar",
+    ],
+    cta: "Quero revisão",
+  },
 ] as const;
 
 const SERVICES = [
@@ -92,7 +147,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const primaryHref = loggedIn ? "/analyze" : "/register";
-  const primaryLabel = loggedIn ? "Nova leitura" : "Começar minha leitura";
+  const primaryLabel = loggedIn ? "Nova cartela" : "Começar minha cartela";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -128,7 +183,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
           ))}
           {loggedIn ? (
             <Link href="/dashboard" className="lp-nav-link">
-              Minhas leituras
+              Minhas cartelas
             </Link>
           ) : (
             <Link href="/login" className="lp-nav-link">
@@ -173,7 +228,7 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               className="lp-mobile-menu__link"
               onClick={() => setMenuOpen(false)}
             >
-              Minhas leituras
+              Minhas cartelas
             </Link>
           ) : (
             <Link
@@ -313,6 +368,78 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
         </div>
       </section>
 
+      {/* Preços */}
+      <section id="precos" className="lp-section lp-prices scroll-mt-24">
+        <div className="lp-section__inner">
+          <div className="lp-section__head">
+            <div>
+              <p className="lp-eyebrow">Investimento</p>
+              <h2 className="lp-h2 font-display">
+                Preços claros,
+                <br />
+                <em>sem surpresa</em>
+              </h2>
+            </div>
+            <p className="lp-section__aside">
+              Você paga só o que usa: a cartela digital primeiro; a revisão
+              humana só se pedir. Pix ou cartão via Asaas.
+            </p>
+          </div>
+
+          <ol className="lp-prices__flow" aria-label="Como funciona o pagamento">
+            {PRICE_FLOW.map((step) => (
+              <li key={step.n} className="lp-prices__flow-item">
+                <span className="lp-prices__flow-n font-display">{step.n}</span>
+                <h3 className="lp-prices__flow-title">{step.title}</h3>
+                <p className="lp-prices__flow-desc">{step.desc}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="lp-prices__skus">
+            {PRICE_SKUS.map((sku) => (
+              <article
+                key={sku.id}
+                className={`lp-prices__sku${sku.id === "review" ? " lp-prices__sku--accent" : ""}`}
+              >
+                <p className="lp-prices__sku-tag">{sku.tag}</p>
+                <h3 className="lp-prices__sku-title font-display">{sku.title}</h3>
+                <p className="lp-prices__sku-price font-display">
+                  {sku.price}
+                  <span className="lp-prices__sku-note">{sku.note}</span>
+                </p>
+                <ul className="lp-prices__sku-list">
+                  {sku.points.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+                <Link
+                  href={
+                    sku.id === "review"
+                      ? loggedIn
+                        ? "/dashboard"
+                        : "/register"
+                      : primaryHref
+                  }
+                  className={`lp-btn lp-btn--lg ${
+                    sku.id === "review"
+                      ? "lp-btn--outline"
+                      : "lp-btn--terracotta"
+                  }`}
+                >
+                  {sku.cta}
+                </Link>
+              </article>
+            ))}
+          </div>
+
+          <p className="lp-prices__footnote">
+            A revisão não substitui a cartela: ela aprofunda o laudo já pago.
+            Valores em reais; cobrança segura.
+          </p>
+        </div>
+      </section>
+
       {/* About */}
       <section id="sobre" className="lp-section scroll-mt-24">
         <div className="lp-about">
@@ -431,53 +558,14 @@ export function LandingHome({ loggedIn, signOutSlot }: Props) {
               href="/dashboard"
               className="lp-btn lp-btn--ghost-light lp-btn--lg"
             >
-              Minhas leituras
+              Minhas cartelas
             </Link>
           )}
         </div>
         <div className="lp-cta__meta">
-          <p>Análise online</p>
+          <p>Cartela a partir de R$ 67</p>
           <p>Foto privada · LGPD</p>
           <p>12 estações</p>
-        </div>
-      </section>
-
-      {/* Registro de contas de teste — só e-mails (sem senhas na UI pública). */}
-      <section
-        id="contas-teste"
-        className="lp-section lp-section--linen scroll-mt-24"
-        aria-label="Contas de teste"
-      >
-        <div className="lp-section__inner max-w-[720px]">
-          <p className="lp-eyebrow">Ambiente de teste</p>
-          <h2 className="lp-h2 font-display mb-6">
-            Contas
-            <br />
-            <em>registradas</em>
-          </h2>
-          <p className="lp-prose mb-6">
-            E-mails usados para login de teste. Senhas, tokens e connection
-            strings nunca são exibidos nesta página.
-          </p>
-          <ul className="space-y-3 text-[0.95rem] text-[#5a4a3a]">
-            <li>
-              <strong>App Glowing</strong> —{" "}
-              <code>usuaria@colometria.app</code> (USER),{" "}
-              <code>consultora@colometria.app</code> (CONSULTANT),{" "}
-              <code>admin@colometria.app</code> (ADMIN)
-            </li>
-            <li>
-              <strong>Consultant-desk</strong> —{" "}
-              <code>consultora.glowing@desk.test</code> (+ contas{" "}
-              <code>*@desk.test</code> criadas nos testes E2E; memória do
-              processo — recriam após restart)
-            </li>
-            <li>
-              <strong>Supabase</strong> — schema + 12 paletas online; usuários
-              demo só existem após <code>npm run db:seed</code> com{" "}
-              <code>ALLOW_DEMO_SEED=true</code>
-            </li>
-          </ul>
         </div>
       </section>
 

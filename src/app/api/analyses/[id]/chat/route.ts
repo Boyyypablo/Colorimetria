@@ -2,18 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import { resolveChatAccess } from "@/lib/desk/chat-access";
+import { listClientChat, postClientChat } from "@/lib/desk/client-chat";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-
-type ChatMessage = {
-  id: string;
-  role: "user" | "consultant" | "system";
-  body: string;
-  createdAt: string;
-  userId: string;
-};
-
-/** Memória de processo (scaffold). Trocar por tabela/desk depois. */
-const threads = new Map<string, ChatMessage[]>();
 
 const postBody = z.object({
   body: z.string().trim().min(1).max(2000),
@@ -50,8 +41,11 @@ export async function GET(
     );
   }
 
-  const messages = (threads.get(id) || []).map(({ userId: _u, ...rest }) => rest);
-  return NextResponse.json({ messages });
+  const [messages, chatAccess] = await Promise.all([
+    listClientChat(id),
+    resolveChatAccess(session.user.id),
+  ]);
+  return NextResponse.json({ messages, access: chatAccess });
 }
 
 export async function POST(
@@ -99,20 +93,27 @@ export async function POST(
     );
   }
 
-  const list = threads.get(id) || [];
-  const message: ChatMessage = {
-    id: crypto.randomUUID(),
-    role: "user",
-    body: parsed.data.body,
-    createdAt: new Date().toISOString(),
-    userId: session.user.id,
-  };
-  list.push(message);
-  threads.set(id, list);
+  const chatAccess = await resolveChatAccess(session.user.id);
+  if (!chatAccess.canSend) {
+    return NextResponse.json(
+      {
+        error:
+          "Sua semana de chat acabou. Pague a revisão para continuar a conversa.",
+        code: "CHAT_PAYMENT_REQUIRED",
+        access: chatAccess,
+      },
+      { status: 402 },
+    );
+  }
 
-  const publicMessages = list.map(({ userId: _u, ...rest }) => rest);
+  const messages = await postClientChat({
+    analysisId: id,
+    userId: session.user.id,
+    body: parsed.data.body,
+  });
+
   return NextResponse.json(
-    { message: publicMessages[publicMessages.length - 1], messages: publicMessages },
+    { message: messages[messages.length - 1], messages },
     { status: 201 },
   );
 }

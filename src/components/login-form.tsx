@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 
@@ -23,34 +22,44 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    e.stopPropagation();
     setLoading(true);
     setError(null);
-    const fd = new FormData(e.currentTarget);
-    const res = await signIn("credentials", {
-      email: String(fd.get("email")),
-      password: String(fd.get("password")),
-      redirect: false,
-    });
-    setLoading(false);
-    if (res?.error) {
-      setError("E-mail ou senha inválidos.");
-      return;
+    try {
+      const fd = new FormData(e.currentTarget);
+      const res = await signIn("credentials", {
+        email: String(fd.get("email")),
+        password: String(fd.get("password")),
+        redirect: false,
+      });
+      if (res?.error || res?.ok === false) {
+        setError("E-mail ou senha inválidos.");
+        return;
+      }
+      window.location.assign("/dashboard");
+    } catch {
+      setError("Falha de conexão. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
-    router.push("/dashboard");
-    router.refresh();
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card className="overflow-hidden p-0">
         <CardContent className="grid p-0 md:grid-cols-2">
-          <form className="p-6 md:p-8" onSubmit={onSubmit}>
+          <form
+            className="p-6 md:p-8"
+            method="post"
+            action="/login"
+            onSubmit={onSubmit}
+            noValidate
+          >
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
                 <Link href="/" className="mb-1">

@@ -32,7 +32,7 @@ export async function GET(_request: Request, { params }: Params) {
     return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
   }
 
-  // Staff: só se o arquivo estiver ligado a alguma análise (reduz browsing livre)
+  // Staff: análise, simulação ou foto de perfil da cliente
   if (isStaff && !isOwner) {
     const linked = await prisma.analysis.findFirst({
       where: { imagePath: relative },
@@ -46,7 +46,14 @@ export async function GET(_request: Request, { params }: Params) {
           },
           select: { id: true },
         });
-    if (!linked && !linkedSim) {
+    const linkedAvatar =
+      linked || linkedSim
+        ? null
+        : await prisma.user.findFirst({
+            where: { avatarPath: relative },
+            select: { id: true },
+          });
+    if (!linked && !linkedSim && !linkedAvatar) {
       return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
     }
   }

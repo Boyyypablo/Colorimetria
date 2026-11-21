@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174,
+    // IPv4 explícito — em Windows o Vite às vezes sobe só em ::1 e o proxy/API falha.
+    host: "127.0.0.1",
+    strictPort: true,
     proxy: {
       "/api-desk": {
         target: "http://127.0.0.1:4010",

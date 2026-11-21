@@ -20,6 +20,19 @@ export type ThreadSummary = {
   archivedAt: string | null;
 };
 
+export type ClientProfile = {
+  userId: string | null;
+  name: string;
+  email: string | null;
+  age: number | null;
+  birthDate: string | null;
+  city: string | null;
+  state: string | null;
+  about: string | null;
+  avatarUrl: string | null;
+  hasAvatar: boolean;
+};
+
 export type PendingReviewItem = {
   id: string;
   analysisId: string;
@@ -89,9 +102,11 @@ export function sendAutoReport(reviewId: string) {
 
 export function getMessages(threadId: string, after?: string) {
   const q = after ? `?after=${encodeURIComponent(after)}` : "";
-  return deskFetch<{ messages: ChatMessage[]; thread?: ThreadSummary }>(
-    `/chat/threads/${threadId}/messages${q}`,
-  );
+  return deskFetch<{
+    messages: ChatMessage[];
+    thread?: ThreadSummary;
+    clientProfile?: ClientProfile | null;
+  }>(`/chat/threads/${threadId}/messages${q}`);
 }
 
 export function postMessage(

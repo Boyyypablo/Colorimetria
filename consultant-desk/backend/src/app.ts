@@ -72,11 +72,12 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   await app.register(cors, {
     origin: (origin, cb) => {
+      // Não passar Error no callback — vira HTTP 500 no Fastify.
       if (!origin || corsOrigins.includes(origin)) {
         cb(null, true);
         return;
       }
-      cb(new Error("Origin não permitida"), false);
+      cb(null, false);
     },
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],

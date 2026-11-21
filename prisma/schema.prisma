@@ -56,12 +56,38 @@ enum DeskMessageRole {
   SYSTEM
 }
 
+/// Produto cobrado via Asaas (lançamento).
+enum PaymentSku {
+  ANALYSIS
+  REVIEW
+}
+
+enum PaymentOrderStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  EXPIRED
+  REFUNDED
+  CANCELLED
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
   name          String?
   passwordHash  String
   role          Role      @default(USER)
+  /// Foto de perfil (caminho relativo em uploads/, ex. userId/avatar-….jpg)
+  avatarPath    String?
+  /// Data de nascimento — idade calculada na UI
+  birthDate     DateTime?
+  city          String?
+  /// UF brasileira (2 letras) ou região
+  state         String?
+  /// Bio / o que busca na colorimetria (visível à consultora)
+  about         String?
+  /// Customer id no Asaas (reuso entre cobranças).
+  asaasCustomerId String?
   lgpdConsentAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -74,6 +100,7 @@ model User {
   colorProfile   UserColorProfile?
   feedbackEvents FeedbackEvent[]
   analysisSamples AnalysisSample[]
+  paymentOrders  PaymentOrder[]
   deskThreadsAssigned DeskThread[] @relation("DeskThreadAssignee")
   deskReviewsAssigned DeskReview[] @relation("DeskReviewAssignee")
   deskMessages        DeskMessage[] @relation("DeskMessageAuthor")
@@ -173,9 +200,38 @@ model Analysis {
   simulations    SimulationJob[]
   sample         AnalysisSample?
   feedbackEvents FeedbackEvent[]
+  paymentOrders  PaymentOrder[]
 
   @@index([userId, createdAt])
   @@index([status])
+}
+
+/// Cobrança Asaas (1 ANALYSIS = 1 análise; 1 REVIEW = 1 pedido de revisão).
+model PaymentOrder {
+  id               String             @id @default(cuid())
+  userId           String
+  sku              PaymentSku
+  amountCents      Int
+  currency         String             @default("BRL")
+  status           PaymentOrderStatus @default(PENDING)
+  asaasPaymentId   String?            @unique
+  asaasCustomerId  String?
+  billingType      String?
+  invoiceUrl       String?
+  pixQrCode        String?            @db.Text
+  pixCopyPaste     String?            @db.Text
+  analysisId       String?
+  paidAt           DateTime?
+  expiresAt        DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis Analysis? @relation(fields: [analysisId], references: [id], onDelete: SetNull)
+
+  @@index([userId, sku, status])
+  @@index([analysisId, sku])
+  @@index([status, expiresAt])
 }
 
 /// Features canônicas versionadas para treino (Fase 2/3).

@@ -1,13 +1,17 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ANALYSIS_GOAL_OPTIONS,
   DEFAULT_ANALYSIS_GOALS,
   type AnalysisGoalId,
 } from "@/lib/color/goals";
 import { PHOTO_QUALITY_TIPS } from "@/lib/color/photo-tips";
+import {
+  PaymentCheckout,
+  type PaymentOrderView,
+} from "@/components/payments/PaymentCheckout";
 import { detectFaceInBrowser } from "@/lib/vision/face/browser";
 import { coverFocusPosition } from "@/lib/vision/face/frame";
 
@@ -29,6 +33,8 @@ type FaceStatus = "idle" | "locating" | "found" | "miss";
 
 export function AnalyzeForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderIdFromUrl = searchParams.get("orderId");
   const fileRef = useRef<HTMLInputElement>(null);
   const dropzoneRef = useRef<HTMLDivElement>(null);
   const frameGen = useRef(0);
@@ -47,15 +53,64 @@ export function AnalyzeForm() {
   const [artificialLight, setArtificialLight] = useState(false);
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paymentsOn, setPaymentsOn] = useState(false);
+  const [paidOrderId, setPaidOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cfgRes = await fetch("/api/payments/config");
+        const cfg = await cfgRes.json();
+        if (cancelled) return;
+        const enabled = Boolean(cfg.enabled);
+        setPaymentsOn(enabled);
+        if (!enabled) return;
+
+        if (orderIdFromUrl) {
+          const res = await fetch(`/api/payments/${orderIdFromUrl}?sync=1`);
+          const data = await res.json();
+          if (
+            !cancelled &&
+            res.ok &&
+            data.order?.sku === "ANALYSIS" &&
+            data.order?.status === "PAID" &&
+            !data.order?.analysisId
+          ) {
+            setPaidOrderId(data.order.id);
+            return;
+          }
+        }
+
+        const listRes = await fetch("/api/payments");
+        const list = await listRes.json();
+        const orphan = Array.isArray(list.orders) ? list.orders[0] : null;
+        if (!cancelled && orphan?.status === "PAID" && !orphan.analysisId) {
+          setPaidOrderId(orphan.id);
+        }
+      } catch {
+        if (!cancelled) setPaymentsOn(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [orderIdFromUrl]);
+
+  const onAnalysisPaid = useCallback((order: PaymentOrderView) => {
+    setPaidOrderId(order.id);
+  }, []);
 
   const trimmedIntention = intention.trim();
+  const paymentOk = !paymentsOn || Boolean(paidOrderId);
   const canSubmit =
     Boolean(photoFile) &&
     faceStatus !== "locating" &&
     trimmedIntention.length >= INTENTION_MIN &&
     goals.length > 0 &&
     Boolean(context) &&
-    lgpd;
+    lgpd &&
+    paymentOk;
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -110,6 +165,7 @@ export function AnalyzeForm() {
     fd.set("artificialLight", artificialLight ? "true" : "false");
     for (const g of goals) fd.append("goals", g);
     fd.set("context", context);
+    if (paidOrderId) fd.set("paymentOrderId", paidOrderId);
 
     try {
       const res = await fetch("/api/analyses", { method: "POST", body: fd });
@@ -117,6 +173,7 @@ export function AnalyzeForm() {
       if (!res.ok) {
         setErrorMessage(data.error || "Não foi possível concluir a análise.");
         setFormState("error");
+        if (data.code === "PAYMENT_REQUIRED") setPaidOrderId(null);
         return;
       }
       router.push(`/analyses/${data.analysis.id}`);
@@ -382,6 +439,27 @@ export function AnalyzeForm() {
         </div>
       </AfSection>
 
+      {paymentsOn && paidOrderId ? (
+        <div className="pay-box pay-box--ok" role="status">
+          <p className="pay-box__eyebrow">Crédito disponível</p>
+          <p className="pay-box__title">Análise já paga — envie a foto</p>
+          <p className="pay-box__hint">
+            Este pagamento ainda não foi usado. Ao enviar, o crédito é consumido
+            automaticamente.
+          </p>
+        </div>
+      ) : null}
+
+      {paymentsOn && !paidOrderId ? (
+        <AfSection
+          number="05"
+          title="Pagamento"
+          subtitle="Libera o laudo completo"
+        >
+          <PaymentCheckout sku="ANALYSIS" onPaid={onAnalysisPaid} />
+        </AfSection>
+      ) : null}
+
       {errorMessage && <p className="af-error-banner">{errorMessage}</p>}
 
       <div className="af-submit">
@@ -395,8 +473,9 @@ export function AnalyzeForm() {
         </button>
         {!canSubmit && (
           <p className="af-submit__hint">
-            Foto, intenção, áreas, contexto e consentimento LGPD são
-            obrigatórios.
+            {paymentsOn && !paidOrderId
+              ? "Confirme o pagamento da análise para enviar."
+              : "Foto, intenção, áreas, contexto e consentimento LGPD são obrigatórios."}
           </p>
         )}
       </div>

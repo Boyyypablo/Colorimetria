@@ -14,7 +14,6 @@ import type {
   AnalysisResultViewProps,
   RecItem,
 } from "@/components/analysis/AnalysisResultView";
-import { attachGarments } from "@/lib/wardrobe/looks";
 import { getVtoRuntimeInfo } from "@/lib/vto/simulate";
 
 const contextLabel: Record<string, string> = {
@@ -208,14 +207,8 @@ export function buildAnalysisResultViewProps(input: {
     .filter(([, tips]) => (tips || []).length > 0)
     .map(([title, tips]) => ({ title, tips: [...(tips || [])] }));
 
-  const lookGroups: Array<{ title: string; items: RecItem[] }> = [
-    { title: "Roupas", items: attachGarments(rec?.clothing || [], contextKey) },
-    { title: "Batons", items: rec?.lipstick || [] },
-    {
-      title: "Sombras e base",
-      items: [...(rec?.eyeshadow || []), ...(rec?.base || [])],
-    },
-  ].filter((g) => g.items.length > 0);
+  /* Looks sugeridos: ocultos na UI por enquanto (design fraco). */
+  const lookGroups: Array<{ title: string; items: RecItem[] }> = [];
 
   const feedbackAvailable =
     isOwner &&
@@ -233,7 +226,6 @@ export function buildAnalysisResultViewProps(input: {
     coachingBlocks.length > 0
       ? { href: "#orientacoes", label: "Orientações" }
       : null,
-    lookGroups.length > 0 ? { href: "#looks", label: "Looks" } : null,
     skinCorrection ? { href: "#cuidados", label: "Cuidados" } : null,
     feedbackAvailable ? { href: "#feedback", label: "Feedback" } : null,
     simulationAvailable ? { href: "#simulacao", label: "Simulação" } : null,
@@ -302,7 +294,8 @@ export function buildAnalysisResultViewProps(input: {
     navItems,
     isOwner,
     isStaff,
-    qualityWarnings: quality?.warnings || [],
+    /* Avisos internos de validação só no desk; cliente vê só dicas de foto. */
+    qualityWarnings: isStaff ? quality?.warnings || [] : [],
     qualityFailedTips: quality?.failedTips || [],
     canRequestReview: isOwner && analysis.status === "READY",
     simulation: simulationAvailable

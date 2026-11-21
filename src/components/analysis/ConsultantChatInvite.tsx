@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 
 type ChatMessage = {
   id: string;
@@ -9,11 +10,31 @@ type ChatMessage = {
   createdAt: string;
 };
 
+type ChatAccess = {
+  canSend: boolean;
+  reason: "trial" | "paid" | "expired" | "payments_off";
+  trialEndsAt: string;
+  daysLeft: number;
+};
+
 type Props = {
   analysisId: string;
   consultantName?: string | null;
   seasonName?: string | null;
 };
+
+function accessNote(access: ChatAccess | null): string | null {
+  if (!access) return null;
+  if (access.reason === "trial") {
+    const days = access.daysLeft === 1 ? "1 dia" : `${access.daysLeft} dias`;
+    return `Chat incluso por ${days}. Depois, a conversa continua com o pagamento da revisão.`;
+  }
+  if (access.reason === "paid") return "Conversa liberada com a revisão paga.";
+  if (access.reason === "expired") {
+    return "Sua semana de chat acabou. Pague a revisão para continuar falando com a consultora.";
+  }
+  return null;
+}
 
 export function ConsultantChatInvite({
   analysisId,
@@ -25,23 +46,33 @@ export function ConsultantChatInvite({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
+  const [access, setAccess] = useState<ChatAccess | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    (async () => {
+    async function load() {
       try {
         const res = await fetch(`/api/analyses/${analysisId}/chat`);
         if (!res.ok) return;
-        const data = (await res.json()) as { messages: ChatMessage[] };
-        if (!cancelled) setMessages(data.messages);
+        const data = (await res.json()) as {
+          messages: ChatMessage[];
+          access?: ChatAccess;
+        };
+        if (!cancelled) {
+          setMessages(data.messages);
+          if (data.access) setAccess(data.access);
+        }
       } catch {
         // silencioso no primeiro load
       }
-    })();
+    }
+    void load();
+    const timer = window.setInterval(() => void load(), 5000);
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [open, analysisId]);
 
@@ -63,9 +94,12 @@ export function ConsultantChatInvite({
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        code?: string;
+        access?: ChatAccess;
         message?: ChatMessage;
         messages?: ChatMessage[];
       };
+      if (data.access) setAccess(data.access);
       if (!res.ok) {
         throw new Error(data.error || "Não foi possível enviar.");
       }
@@ -93,9 +127,13 @@ export function ConsultantChatInvite({
       </h2>
       <p className="ar-concierge__lead">
         Quer afinar a cartela, remodelar um look ou receber orientações sob
-        medida para cabelo, maquiagem e guarda-roupa{seasonBit}? Abra a
-        conversa particular — cuidado contínuo, no ritmo dela e no seu.
+        medida para cabelo, maquiagem e guarda-roupa{seasonBit}? A conversa
+        fica aberta por uma semana depois do cadastro. Depois disso, segue
+        com o pagamento da revisão.
       </p>
+      {accessNote(access) ? (
+        <p className="ar-concierge__lead">{accessNote(access)}</p>
+      ) : null}
 
       {!open ? (
         <button
@@ -140,6 +178,20 @@ export function ConsultantChatInvite({
             <div ref={endRef} />
           </div>
 
+          {access && !access.canSend ? (
+            <div className="ar-concierge__composer">
+              <PaymentCheckout
+                sku="REVIEW"
+                analysisId={analysisId}
+                title="Continuar a conversa"
+                onPaid={() =>
+                  setAccess((prev) =>
+                    prev ? { ...prev, canSend: true, reason: "paid" } : prev,
+                  )
+                }
+              />
+            </div>
+          ) : (
           <form className="ar-concierge__composer" onSubmit={onSubmit}>
             <label className="sr-only" htmlFor={`chat-${analysisId}`}>
               Mensagem para a consultora
@@ -158,6 +210,7 @@ export function ConsultantChatInvite({
               {sending ? "Enviando…" : "Enviar à consultora"}
             </button>
           </form>
+          )}
         </div>
       )}
     </section>

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/prisma";
+import { paymentsEnabled } from "@/lib/payments/config";
+import { assertReviewOrderPaid } from "@/lib/payments/orders";
 import { readUpload } from "@/lib/storage/local";
 
 type Params = { params: Promise<{ id: string }> };
@@ -53,6 +55,32 @@ export async function PATCH(request: Request, { params }: Params) {
     const analysis = await prisma.analysis.findUnique({ where: { id } });
     if (!analysis || analysis.userId !== session.user.id) {
       return NextResponse.json({ error: "Acesso negado." }, { status: 403 });
+    }
+    if (analysis.status === "APPROVED") {
+      return NextResponse.json(
+        { error: "Esta análise já foi aprovada." },
+        { status: 400 },
+      );
+    }
+    if (paymentsEnabled()) {
+      try {
+        await assertReviewOrderPaid({
+          userId: session.user.id,
+          analysisId: id,
+          orderId: typeof body.paymentOrderId === "string" ? body.paymentOrderId : null,
+        });
+      } catch (err) {
+        return NextResponse.json(
+          {
+            error:
+              err instanceof Error
+                ? err.message
+                : "Pagamento da revisão necessário.",
+            code: "PAYMENT_REQUIRED",
+          },
+          { status: 402 },
+        );
+      }
     }
     const updated = await prisma.analysis.update({
       where: { id },

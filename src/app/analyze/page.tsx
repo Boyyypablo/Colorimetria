@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { StudioHeader } from "@/components/studio/StudioHeader";
 import { AnalyzeForm } from "@/components/AnalyzeForm";
@@ -11,10 +12,12 @@ export default async function AnalyzePage() {
     <main className="studio">
       <StudioHeader
         backHref="/dashboard"
-        backLabel="Minhas análises"
-        title="Nova análise"
+        backLabel="Minhas cartelas"
+        title="Nova cartela"
       />
-      <AnalyzeForm />
+      <Suspense fallback={<p className="af-submit__hint">Carregando formulário…</p>}>
+        <AnalyzeForm />
+      </Suspense>
     </main>
   );
 }

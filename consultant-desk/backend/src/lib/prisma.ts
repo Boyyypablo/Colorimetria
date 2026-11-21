@@ -6,9 +6,15 @@ import { PrismaClient } from "@prisma/client";
 const here = dirname(fileURLToPath(import.meta.url));
 const deskEnv = resolve(here, "../../.env");
 const rootEnv = resolve(here, "../../../../.env");
-/** Raiz primeiro (DATABASE_URL Supabase); desk sobrescreve PORT/JWT locais. */
-config({ path: rootEnv });
-config({ path: deskEnv, override: true });
+/**
+ * Local: carrega .env (raiz + desk).
+ * Vercel: NÃO carregar .env do bundle — senão sobrescreve DATABASE_URL/CORS/JWT
+ * injetados pelo painel (dotenv override).
+ */
+if (!process.env.VERCEL) {
+  config({ path: rootEnv });
+  config({ path: deskEnv, override: true });
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error(

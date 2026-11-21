@@ -1,30 +1,110 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  PaymentCheckout,
+  type PaymentOrderView,
+} from "@/components/payments/PaymentCheckout";
 
 type Season = { id: string; namePt: string };
 
 export function RequestReviewButton({ analysisId }: { analysisId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [paymentsOn, setPaymentsOn] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [paidOrderId, setPaidOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/payments/config")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled) setPaymentsOn(Boolean(data.enabled));
+      })
+      .catch(() => {
+        if (!cancelled) setPaymentsOn(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const submitReview = useCallback(
+    async (orderId: string | null) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/analyses/${analysisId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "request_review",
+            paymentOrderId: orderId,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          if (data.code === "PAYMENT_REQUIRED") {
+            setShowCheckout(true);
+            setPaidOrderId(null);
+          }
+          setError(data.error || "Não foi possível solicitar a revisão.");
+          return;
+        }
+        setShowCheckout(false);
+        router.refresh();
+      } catch {
+        setError("Falha de conexão. Tente novamente.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [analysisId, router],
+  );
+
+  const onReviewPaid = useCallback(
+    (order: PaymentOrderView) => {
+      setPaidOrderId(order.id);
+      void submitReview(order.id);
+    },
+    [submitReview],
+  );
 
   async function request() {
-    setLoading(true);
-    await fetch(`/api/analyses/${analysisId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "request_review" }),
-    });
-    setLoading(false);
-    router.refresh();
+    if (paymentsOn && !paidOrderId) {
+      setShowCheckout(true);
+      return;
+    }
+    await submitReview(paidOrderId);
   }
 
   return (
-    <button type="button" className="btn btn-ghost" onClick={request} disabled={loading}>
-      {loading ? "Solicitando…" : "Pedir revisão da consultora"}
-    </button>
+    <div className="space-y-3">
+      <button
+        type="button"
+        className="btn btn-ghost"
+        onClick={() => void request()}
+        disabled={loading}
+      >
+        {loading
+          ? "Solicitando…"
+          : paymentsOn && !paidOrderId
+            ? "Pagar e pedir revisão"
+            : "Pedir revisão da consultora"}
+      </button>
+      {error ? <p className="text-sm text-[var(--destructive)]">{error}</p> : null}
+      {showCheckout && paymentsOn ? (
+        <PaymentCheckout
+          sku="REVIEW"
+          analysisId={analysisId}
+          onPaid={onReviewPaid}
+        />
+      ) : null}
+    </div>
   );
 }
 

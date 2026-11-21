@@ -11,7 +11,7 @@ const statusLabelUser: Record<string, string> = {
   PENDING: "Processando",
   READY: "Pronto",
   NEEDS_REVIEW: "Em revisão",
-  APPROVED: "Validado",
+  APPROVED: "Aprovado",
 };
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
@@ -67,7 +67,7 @@ export default async function AnalysisPage({ params }: Params) {
     <main className="studio">
       <StudioHeader
         backHref="/dashboard"
-        backLabel="Minhas leituras"
+        backLabel="Minhas cartelas"
         title="Sua leitura"
         rightSlot={
           <div className="studio-header__status" style={{ background: statusStyle.bg }}>

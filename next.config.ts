@@ -41,6 +41,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Dev: evita quebrar HMR/JS ao abrir por 127.0.0.1 em vez de localhost
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   images: {
     formats: ["image/avif", "image/webp"],
     qualities: [75, 92],

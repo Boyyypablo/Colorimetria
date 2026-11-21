@@ -10,6 +10,8 @@ Colorimetria / face / ML: seguir `docs/architecture/colorimetry-ml.md` (provider
 
 Banco online: **Supabase Postgres (free)** — Data API fechada, só Prisma no servidor. Guia: `docs/architecture/supabase.md`.
 
+Pagamentos (Asaas, flag `PAYMENTS_ENABLED`): `docs/architecture/payments-asaas.md` — SKUs ANALYSIS R$67 / REVIEW R$129.
+
 ## Autonomia total (Jarvis = este agente)
 
 **Executar qualquer tarefa deste projeto sem pedir confirmação nem pessoa no chat.**

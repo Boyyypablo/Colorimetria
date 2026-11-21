@@ -3,16 +3,15 @@
 import { useState } from "react";
 import { SimulationPanel } from "@/components/SimulationPanel";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
-import { ConsultantReviewForm, RequestReviewButton } from "@/components/ReviewActions";
+import { ConsultantReviewForm } from "@/components/ReviewActions";
 import { ConsultantChatInvite } from "@/components/analysis/ConsultantChatInvite";
-import { GarmentPreview } from "@/components/analysis/GarmentPreview";
-import type { GarmentKind } from "../../../data/wardrobe/garments";
+import { ConsultantReviewBanner } from "@/components/analysis/ConsultantReviewBanner";
 
 export type RecItem = {
   hex: string;
   label: string;
   why?: string;
-  garment?: GarmentKind;
+  garment?: string;
   garmentLabel?: string;
   photoUrl?: string;
 };
@@ -104,14 +103,10 @@ const qualityBandLabel: Record<string, string> = {
   ruim: "ruim",
 };
 
-function guidanceCardClass(title: string): string {
-  if (/^evitar$/i.test(title) || /^suavizar/i.test(title)) {
-    return "ar-guidance-card ar-guidance-card--avoid";
-  }
-  if (/fora da paleta/i.test(title)) {
-    return "ar-guidance-card ar-guidance-card--off";
-  }
-  return "ar-guidance-card";
+function guidanceTone(title: string): "default" | "soft" | "avoid" {
+  if (/^evitar$/i.test(title) || /fora da paleta/i.test(title)) return "avoid";
+  if (/^suavizar/i.test(title)) return "soft";
+  return "default";
 }
 
 export function AnalysisResultView(props: AnalysisResultViewProps) {
@@ -123,12 +118,22 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  const paletteUse =
+    props.rankedUse.length > 0
+      ? props.rankedUse
+      : props.useColors.map((hex) => ({ hex, why: "" }));
+
+  const showClientPhotoTips =
+    !props.isStaff && props.qualityFailedTips.length > 0;
+  const showStaffQuality =
+    props.isStaff &&
+    (props.qualityWarnings.length > 0 ||
+      props.qualityFailedTips.length > 0 ||
+      (props.evaluation?.reviewReasons.length ?? 0) > 0);
+
   return (
     <div className="ar-stage">
       <div className="ar-stage__wash" aria-hidden />
-      <div className="ar-shell">
-        <div className="ar-shell__rail ar-shell__rail--left" aria-hidden />
-        <div className="ar-shell__inner">
       {props.navItems.length > 0 && (
         <nav className="ar-nav" aria-label="Seções da leitura">
           <div className="ar-nav__track">
@@ -149,444 +154,438 @@ export function AnalysisResultView(props: AnalysisResultViewProps) {
           </div>
         </nav>
       )}
+      <div className="ar-shell">
+        <div className="ar-shell__rail ar-shell__rail--left" aria-hidden />
+        <div className="ar-shell__inner">
 
-      <section className="ar-hero">
-        <div className="ar-hero__layout">
-          <aside className="ar-hero__media">
-            <div className="ar-hero__photo-wrap">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={props.photoUrl}
-                alt="Foto enviada para a leitura"
-                className="ar-hero__photo"
-              />
-            </div>
-            {(props.undertoneLabel || props.confidencePercent != null) && (
-              <div className="ar-hero__media-meta">
-                {props.undertoneLabel ? (
-                  <p className="ar-hero__media-meta-row">
-                    <span>Subtom</span>
-                    <strong>{props.undertoneLabel}</strong>
-                  </p>
-                ) : null}
-                {props.confidencePercent != null ? (
-                  <p className="ar-hero__media-meta-row">
-                    <span>Certeza</span>
-                    <strong>
-                      {props.confidencePercent}%
-                      {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
-                    </strong>
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </aside>
-
-          <div className="ar-hero__copy">
-            <div className="ar-hero__intro">
-              <p className="ar-hero__eyebrow">Sua estação de cor</p>
-              <h1 className="ar-hero__season">
-                {props.seasonName || "Em processamento"}
-              </h1>
-            </div>
-
-            {props.statusKey === "NEEDS_REVIEW" && (
-              <p className="ar-hero__provisional">
-                Leitura provisória — a evidência da foto não basta para fechar a
-                cartela. Refaça a selfie ou peça revisão.
-              </p>
-            )}
-
-            {props.confidenceNote ? (
-              <p className="ar-hero__meta-note">{props.confidenceNote}</p>
-            ) : null}
-
-            {props.seasonDescription && (
-              <p className="ar-hero__desc">{props.seasonDescription}</p>
-            )}
-            {props.undertoneHint && (
-              <p className="ar-hero__desc">{props.undertoneHint}</p>
-            )}
-            {props.sisterNote && (
-              <p className="ar-hero__desc">{props.sisterNote}</p>
-            )}
-
-            {props.evaluation && (
-              <div id="leitura" className="ar-why">
-                <p className="ar-why__label">Por que esta cartela</p>
-                <p className="ar-why__text">{props.evaluation.why}</p>
-                <ul className="ar-why__axes">
-                  {props.evaluation.axes.map((axis) => (
-                    <li
-                      key={axis.id}
-                      className={`ar-why__axis${axis.uncertain ? " ar-why__axis--uncertain" : ""}`}
-                    >
-                      <span className="ar-why__axis-label">{axis.label}</span>
-                      <span className="ar-why__axis-value">{axis.value}</span>
-                      {axis.hint ? (
-                        <span className="ar-why__axis-hint">{axis.hint}</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-                {props.evaluation.checks && props.evaluation.checks.length > 0 && (
-                  <ul className="ar-why__checks">
-                    {props.evaluation.checks.map((check) => (
-                      <li
-                        key={check.id}
-                        className={
-                          check.pass
-                            ? "ar-why__check"
-                            : "ar-why__check ar-why__check--fail"
-                        }
-                      >
-                        <span className="ar-why__check-label">{check.label}</span>
-                        <span className="ar-why__check-note">{check.note}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            {!props.isStaff && props.lowConfidenceWarning && (
-              <p className="ar-hero__desc ar-hero__desc--warn">
-                Estimativa com baixa certeza — uma consultora pode revisar.
-              </p>
-            )}
-
-            {(props.intention || props.contextLabel) && (
-              <dl className="ar-hero__facts">
-                {props.intention && (
-                  <div className="ar-hero__fact">
-                    <dt>Intenção</dt>
-                    <dd>&ldquo;{props.intention}&rdquo;</dd>
-                  </div>
-                )}
-                {props.contextLabel && (
-                  <div className="ar-hero__fact">
-                    <dt>Contexto</dt>
-                    <dd>{props.contextLabel}</dd>
-                  </div>
-                )}
-              </dl>
-            )}
-
-            {props.goalLabels.length > 0 && (
-              <div className="ar-hero__areas">
-                <p className="ar-hero__areas-label">Áreas analisadas</p>
-                <div className="ar-hero__areas-list">
-                  {props.goalLabels.map((g) => (
-                    <span key={g} className="ar-hero__area-chip">
-                      {g}
-                    </span>
-                  ))}
+          <section className="ar-hero">
+            <div className="ar-hero__layout">
+              <aside className="ar-hero__media">
+                <div className="ar-hero__photo-wrap">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={props.photoUrl}
+                    alt="Foto enviada para a leitura"
+                    className="ar-hero__photo"
+                  />
                 </div>
-              </div>
-            )}
-
-            {props.canRequestReview && (
-              <div className="ar-hero__actions">
-                <RequestReviewButton analysisId={props.analysisId} />
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <div className="ar-body">
-        {(props.qualityWarnings.length > 0 ||
-          props.qualityFailedTips.length > 0 ||
-          (props.evaluation?.reviewReasons.length ?? 0) > 0) && (
-          <div className="ar-quality">
-            {props.evaluation && props.evaluation.reviewReasons.length > 0 && (
-              <ul className="ar-quality__warnings">
-                {props.evaluation.reviewReasons.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            )}
-            {props.qualityWarnings.length > 0 && (
-              <ul className="ar-quality__warnings">
-                {props.qualityWarnings.map((w) => (
-                  <li key={w}>{w}</li>
-                ))}
-              </ul>
-            )}
-            {props.qualityFailedTips.length > 0 && (
-              <div className="ar-quality__tips">
-                <p className="ar-quality__tips-title">Para a próxima foto</p>
-                <ul>
-                  {props.qualityFailedTips.map((t) => (
-                    <li key={t}>{t}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {props.consultantNote && (
-          <div className="ar-note">
-            <div className="ar-note__head">
-              <p className="ar-note__author">
-                Nota da consultora
-                {props.consultantNote.author ? ` · ${props.consultantNote.author}` : ""}
-              </p>
-              <p className="ar-note__date">{props.consultantNote.date}</p>
-            </div>
-            <p className="ar-note__text">&ldquo;{props.consultantNote.text}&rdquo;</p>
-          </div>
-        )}
-
-        {props.useColors.length > 0 && (
-          <section id="paleta" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Paleta de cores</h2>
-              <span className="ar-section__label">Sua cartela</span>
-            </div>
-
-            <p className="ar-subhead">Cores para usar</p>
-            <div className="ar-palette-use">
-              {(props.rankedUse.length > 0
-                ? props.rankedUse
-                : props.useColors.map((hex) => ({ hex, why: "" }))
-              ).map((c, i) => (
-                <div key={c.hex} className="ar-swatch-card">
-                  <div className="ar-swatch-card__color" style={{ background: c.hex }}>
-                    <span className="ar-swatch-card__rank">#{i + 1}</span>
+                {(props.undertoneLabel || props.confidencePercent != null) && (
+                  <div className="ar-hero__media-meta">
+                    {props.undertoneLabel ? (
+                      <p className="ar-hero__media-meta-row">
+                        <span>Subtom</span>
+                        <strong>{props.undertoneLabel}</strong>
+                      </p>
+                    ) : null}
+                    {props.confidencePercent != null ? (
+                      <p className="ar-hero__media-meta-row">
+                        <span>Certeza</span>
+                        <strong>
+                          {props.confidencePercent}%
+                          {props.confidenceBand ? ` · ${props.confidenceBand}` : ""}
+                        </strong>
+                      </p>
+                    ) : null}
                   </div>
-                  <p className="ar-swatch-card__hex">{c.hex}</p>
-                  {c.why ? (
-                    <p className="ar-swatch-card__why">{c.why}</p>
-                  ) : null}
-                </div>
-              ))}
-            </div>
+                )}
+              </aside>
 
-            {props.avoidColors.length > 0 && (
-              <div className="ar-palette-avoid">
-                <p className="ar-subhead">Cores para evitar</p>
-                <div className="ar-palette-avoid__grid">
-                  {props.avoidColors.map((hex) => (
-                    <div key={hex} className="ar-avoid-chip">
-                      <div
-                        className="ar-avoid-chip__dot"
-                        style={{ background: hex }}
-                        aria-hidden
-                      >
-                        <span className="ar-avoid-chip__x">✕</span>
+              <div className="ar-hero__copy">
+                <div className="ar-hero__intro">
+                  <p className="ar-hero__eyebrow">Sua estação de cor</p>
+                  <h1 className="ar-hero__season">
+                    {props.seasonName || "Em processamento"}
+                  </h1>
+                </div>
+
+                {props.statusKey === "NEEDS_REVIEW" && (
+                  <p className="ar-hero__provisional">
+                    Leitura provisória — pedimos uma selfie com melhor luz ou a
+                    revisão de uma consultora para fechar a cartela.
+                  </p>
+                )}
+
+                {props.confidenceNote ? (
+                  <p className="ar-hero__meta-note">{props.confidenceNote}</p>
+                ) : null}
+
+                {props.seasonDescription && (
+                  <p className="ar-hero__desc">{props.seasonDescription}</p>
+                )}
+                {props.undertoneHint && (
+                  <p className="ar-hero__desc">{props.undertoneHint}</p>
+                )}
+                {props.sisterNote && (
+                  <p className="ar-hero__desc">{props.sisterNote}</p>
+                )}
+
+                {props.evaluation && (
+                  <div id="leitura" className="ar-why">
+                    <p className="ar-why__label">Por que esta cartela</p>
+                    <p className="ar-why__text">{props.evaluation.why}</p>
+                    <ul className="ar-why__axes">
+                      {props.evaluation.axes.map((axis) => (
+                        <li
+                          key={axis.id}
+                          className={`ar-why__axis${axis.uncertain ? " ar-why__axis--uncertain" : ""}`}
+                        >
+                          <span className="ar-why__axis-label">{axis.label}</span>
+                          <span className="ar-why__axis-value">{axis.value}</span>
+                          {axis.hint ? (
+                            <span className="ar-why__axis-hint">{axis.hint}</span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                    {props.isStaff &&
+                      props.evaluation.checks &&
+                      props.evaluation.checks.length > 0 && (
+                        <ul className="ar-why__checks">
+                          {props.evaluation.checks.map((check) => (
+                            <li
+                              key={check.id}
+                              className={
+                                check.pass
+                                  ? "ar-why__check"
+                                  : "ar-why__check ar-why__check--fail"
+                              }
+                            >
+                              <span className="ar-why__check-label">
+                                {check.label}
+                              </span>
+                              <span className="ar-why__check-note">{check.note}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                  </div>
+                )}
+
+                {!props.isStaff && props.lowConfidenceWarning && (
+                  <p className="ar-hero__desc ar-hero__desc--warn">
+                    Estimativa com baixa certeza — uma consultora pode revisar.
+                  </p>
+                )}
+
+                {(props.intention || props.contextLabel) && (
+                  <dl className="ar-hero__facts">
+                    {props.intention && (
+                      <div className="ar-hero__fact">
+                        <dt>Intenção</dt>
+                        <dd>&ldquo;{props.intention}&rdquo;</dd>
                       </div>
-                      <div>
-                        <p className="ar-avoid-chip__name">{hex}</p>
-                        <p className="ar-avoid-chip__why">Evitar perto do rosto</p>
+                    )}
+                    {props.contextLabel && (
+                      <div className="ar-hero__fact">
+                        <dt>Contexto</dt>
+                        <dd>{props.contextLabel}</dd>
                       </div>
+                    )}
+                  </dl>
+                )}
+
+                {props.goalLabels.length > 0 && (
+                  <div className="ar-hero__areas">
+                    <p className="ar-hero__areas-label">Áreas analisadas</p>
+                    <div className="ar-hero__areas-list">
+                      {props.goalLabels.map((g) => (
+                        <span key={g} className="ar-hero__area-chip">
+                          {g}
+                        </span>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        )}
-
-        {props.coachingBlocks.length > 0 && (
-          <section id="orientacoes" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Orientações</h2>
-              <span className="ar-section__label">Guia prático</span>
             </div>
-            <div className="ar-guidance-grid">
-              {props.coachingBlocks.map((block) => (
-                <div key={block.title} className={guidanceCardClass(block.title)}>
-                  <p className="ar-guidance-card__label">{block.title}</p>
+          </section>
+
+          <div className="ar-body">
+            {showClientPhotoTips && (
+              <div className="ar-quality">
+                <div className="ar-quality__tips">
+                  <p className="ar-quality__tips-title">Para a próxima foto</p>
                   <ul>
-                    {block.tips.map((t) => (
-                      <li key={t} className="ar-guidance-card__text">
-                        {t}
-                      </li>
+                    {props.qualityFailedTips.map((t) => (
+                      <li key={t}>{t}</li>
                     ))}
                   </ul>
                 </div>
-              ))}
-            </div>
-          </section>
-        )}
+              </div>
+            )}
 
-        {props.lookGroups.length > 0 && (
-          <section id="looks" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Looks sugeridos</h2>
-              <span className="ar-section__label">Por categoria</span>
-            </div>
-            <div className="ar-looks-grid">
-              {props.lookGroups.map((group) => {
-                const isWardrobe = group.items.some((item) => item.garment);
-                return (
-                  <div
-                    key={group.title}
-                    className={`ar-look-card${isWardrobe ? " ar-look-card--wardrobe" : ""}`}
-                  >
-                    <div className="ar-look-card__head">
-                      <p className="ar-look-card__title">{group.title}</p>
-                    </div>
-                    {isWardrobe ? (
-                      <div className="ar-garment-grid">
-                        {group.items.map((item) => (
+            {showStaffQuality && (
+              <div className="ar-quality">
+                {props.evaluation && props.evaluation.reviewReasons.length > 0 && (
+                  <ul className="ar-quality__warnings">
+                    {props.evaluation.reviewReasons.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+                {props.qualityWarnings.length > 0 && (
+                  <ul className="ar-quality__warnings">
+                    {props.qualityWarnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                )}
+                {props.qualityFailedTips.length > 0 && (
+                  <div className="ar-quality__tips">
+                    <p className="ar-quality__tips-title">Para a próxima foto</p>
+                    <ul>
+                      {props.qualityFailedTips.map((t) => (
+                        <li key={t}>{t}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {props.consultantNote && (
+              <div className="ar-note">
+                <div className="ar-note__head">
+                  <p className="ar-note__author">
+                    Nota da consultora
+                    {props.consultantNote.author
+                      ? ` · ${props.consultantNote.author}`
+                      : ""}
+                  </p>
+                  <p className="ar-note__date">{props.consultantNote.date}</p>
+                </div>
+                <p className="ar-note__text">
+                  &ldquo;{props.consultantNote.text}&rdquo;
+                </p>
+              </div>
+            )}
+
+            {paletteUse.length > 0 && (
+              <section id="paleta" className="ar-section">
+                <div className="ar-section__head">
+                  <h2 className="ar-section__title">Paleta de cores</h2>
+                  <span className="ar-section__label">Sua cartela</span>
+                </div>
+
+                <div className="ar-palette">
+                  <p className="ar-subhead">Cores para usar</p>
+                  <div className="ar-palette-strip" role="list">
+                    {paletteUse.map((c, i) => (
+                      <article
+                        key={c.hex}
+                        className="ar-palette-swatch"
+                        role="listitem"
+                        style={{ ["--swatch" as string]: c.hex }}
+                      >
+                        <div className="ar-palette-swatch__chip" aria-hidden>
+                          <span className="ar-palette-swatch__rank">
+                            {String(i + 1).padStart(2, "0")}
+                          </span>
+                        </div>
+                        <div className="ar-palette-swatch__meta">
+                          <p className="ar-palette-swatch__hex">{c.hex}</p>
+                          {c.why ? (
+                            <p className="ar-palette-swatch__why">{c.why}</p>
+                          ) : null}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+
+                  {props.avoidColors.length > 0 && (
+                    <div className="ar-palette-avoid">
+                      <p className="ar-subhead">Cores para evitar</p>
+                      <div className="ar-palette-avoid__row" role="list">
+                        {props.avoidColors.map((hex) => (
                           <div
-                            key={`${item.garment}-${item.label}-${item.hex}`}
-                            className="ar-garment-card"
+                            key={hex}
+                            className="ar-palette-avoid__item"
+                            role="listitem"
                           >
-                            {item.garment ? (
-                              <GarmentPreview
-                                kind={item.garment}
-                                hex={item.hex}
-                                label={item.garmentLabel || item.label}
-                                photoUrl={item.photoUrl}
-                              />
-                            ) : null}
-                            <p className="ar-garment-card__kind">
-                              {item.garmentLabel || "Peça"}
-                            </p>
-                            <p className="ar-garment-card__name">{item.label}</p>
-                            <p className="ar-garment-card__hex">{item.hex}</p>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="ar-look-card__body">
-                        {group.items.map((item) => (
-                          <div
-                            key={`${item.label}-${item.hex}`}
-                            className="ar-look-card__row"
-                          >
-                            <div
-                              className="ar-look-card__dot"
-                              style={{ background: item.hex }}
+                            <span
+                              className="ar-palette-avoid__chip"
+                              style={{ background: hex }}
+                              aria-hidden
                             />
                             <div>
-                              <div className="ar-look-card__row-head">
-                                <span className="ar-look-card__row-value">
-                                  {item.label}
-                                </span>
-                                <span className="ar-look-card__row-hex">{item.hex}</span>
-                              </div>
-                              {item.why && (
-                                <p className="ar-look-card__row-why">{item.why}</p>
-                              )}
+                              <p className="ar-palette-avoid__hex">{hex}</p>
+                              <p className="ar-palette-avoid__hint">
+                                Longe do rosto
+                              </p>
                             </div>
                           </div>
                         ))}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {props.skinCorrection && (
-          <section id="cuidados" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Cuidados com a pele</h2>
-              <span className="ar-section__label">Recomendações específicas</span>
-            </div>
-            <p className="ar-guidance-card__text ar-care-intro">
-              {props.skinCorrection.intro}
-            </p>
-            <div className="ar-care-list">
-              {props.skinCorrection.items.map((item, i) => (
-                <div key={`${item.hex}-${i}`} className="ar-care-item">
-                  <div className="ar-care-item__dot" style={{ background: item.hex }} />
-                  <div>
-                    <div className="ar-care-item__head">
-                      <p className="ar-care-item__name">{item.label}</p>
-                      <span className="ar-care-item__hex">{item.hex}</span>
-                      <span className="ar-care-item__role">
-                        {ROLE_LABEL[item.role] || item.role}
-                      </span>
                     </div>
-                    <p className="ar-care-item__why">{item.why}</p>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-            {props.ethicalNote && (
-              <p className="ar-guidance-card__text ar-care-note">{props.ethicalNote}</p>
+              </section>
             )}
-          </section>
-        )}
 
-        {props.isOwner && props.feedback && (
-          <section id="feedback" className="ar-section" aria-labelledby="feedback-heading">
-            <div className="ar-section__head">
-              <h2 id="feedback-heading" className="ar-section__title">
-                Sua opinião
-              </h2>
-              <span className="ar-section__label">Calibra as próximas leituras</span>
-            </div>
-            <FeedbackPanel
-              analysisId={props.analysisId}
-              seasonName={props.feedback.seasonName}
-              clothing={props.feedback.clothing}
-              lipstick={props.feedback.lipstick}
-              eyeshadow={props.feedback.eyeshadow}
-              base={props.feedback.base}
-              corrections={props.feedback.corrections}
-              initialVotes={props.feedback.initialVotes}
-            />
-          </section>
-        )}
+            {props.coachingBlocks.length > 0 && (
+              <section id="orientacoes" className="ar-section">
+                <div className="ar-section__head">
+                  <h2 className="ar-section__title">Orientações</h2>
+                  <span className="ar-section__label">Guia prático</span>
+                </div>
+                <div className="ar-topics">
+                  {props.coachingBlocks.map((block) => {
+                    const tone = guidanceTone(block.title);
+                    return (
+                      <article
+                        key={block.title}
+                        className={`ar-topic ar-topic--${tone}`}
+                      >
+                        <header className="ar-topic__head">
+                          <h3 className="ar-topic__title">{block.title}</h3>
+                          <span className="ar-topic__count">
+                            {block.tips.length}{" "}
+                            {block.tips.length === 1 ? "dica" : "dicas"}
+                          </span>
+                        </header>
+                        <ol className="ar-topic__list">
+                          {block.tips.map((tip, idx) => (
+                            <li key={tip} className="ar-topic__item">
+                              <span className="ar-topic__n" aria-hidden>
+                                {String(idx + 1).padStart(2, "0")}
+                              </span>
+                              <p className="ar-topic__text">{tip}</p>
+                            </li>
+                          ))}
+                        </ol>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
-        {props.isOwner && props.simulation && props.simulation.colors.length > 0 && (
-          <section id="simulacao" className="ar-section">
-            <div className="ar-section__head">
-              <h2 className="ar-section__title">Simulação visual</h2>
-              <span className="ar-section__label">Experimente na sua foto</span>
-            </div>
-            <SimulationPanel
-              analysisId={props.analysisId}
-              colors={props.simulation.colors}
-              vtoProvider={props.simulation.vtoProvider}
-              aiReady={props.simulation.aiReady}
-            />
-          </section>
-        )}
+            {props.skinCorrection && (
+              <section id="cuidados" className="ar-section">
+                <div className="ar-section__head">
+                  <h2 className="ar-section__title">Cuidados com a pele</h2>
+                  <span className="ar-section__label">Recomendações</span>
+                </div>
+                <p className="ar-care-intro">{props.skinCorrection.intro}</p>
+                <div className="ar-care-list">
+                  {props.skinCorrection.items.map((item, i) => (
+                    <div key={`${item.hex}-${i}`} className="ar-care-item">
+                      <div
+                        className="ar-care-item__dot"
+                        style={{ background: item.hex }}
+                      />
+                      <div>
+                        <div className="ar-care-item__head">
+                          <p className="ar-care-item__name">{item.label}</p>
+                          <span className="ar-care-item__hex">{item.hex}</span>
+                          <span className="ar-care-item__role">
+                            {ROLE_LABEL[item.role] || item.role}
+                          </span>
+                        </div>
+                        <p className="ar-care-item__why">{item.why}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {props.ethicalNote && (
+                  <p className="ar-care-note">{props.ethicalNote}</p>
+                )}
+              </section>
+            )}
 
-        {props.isOwner ? (
-          <ConsultantChatInvite
-            analysisId={props.analysisId}
-            consultantName={props.consultantNote?.author}
-            seasonName={props.seasonName}
-          />
-        ) : null}
-      </div>
+            {props.isOwner && props.feedback && (
+              <section
+                id="feedback"
+                className="ar-section"
+                aria-labelledby="feedback-heading"
+              >
+                <div className="ar-section__head">
+                  <h2 id="feedback-heading" className="ar-section__title">
+                    Sua opinião
+                  </h2>
+                  <span className="ar-section__label">
+                    Calibra as próximas leituras
+                  </span>
+                </div>
+                <FeedbackPanel
+                  analysisId={props.analysisId}
+                  seasonName={props.feedback.seasonName}
+                  clothing={props.feedback.clothing}
+                  lipstick={props.feedback.lipstick}
+                  eyeshadow={props.feedback.eyeshadow}
+                  base={props.feedback.base}
+                  corrections={props.feedback.corrections}
+                  initialVotes={props.feedback.initialVotes}
+                />
+              </section>
+            )}
 
-      {props.isStaff && (props.staffTech || props.staffReview) && (
-        <div className="ar-body ar-staff-panel">
-          {props.staffTech && (
-            <div className="ar-staff-note">
-              Contexto: {props.staffTech.context}
-              {props.staffTech.contrastScore != null
-                ? ` · Contraste ${props.staffTech.contrastScore.toFixed(0)}`
-                : ""}
-              {props.staffTech.contrastSource ? ` (${props.staffTech.contrastSource})` : ""}
-              {props.staffTech.detectorProvider ? ` · Face ${props.staffTech.detectorProvider}` : ""}
-              {props.staffTech.qualityBand
-                ? ` · Qualidade ${qualityBandLabel[props.staffTech.qualityBand] || props.staffTech.qualityBand}`
-                : ""}
+            {props.isOwner &&
+              props.simulation &&
+              props.simulation.colors.length > 0 && (
+                <section id="simulacao" className="ar-section">
+                  <div className="ar-section__head">
+                    <h2 className="ar-section__title">Simulação visual</h2>
+                    <span className="ar-section__label">
+                      Experimente na sua foto
+                    </span>
+                  </div>
+                  <SimulationPanel
+                    analysisId={props.analysisId}
+                    colors={props.simulation.colors}
+                    vtoProvider={props.simulation.vtoProvider}
+                    aiReady={props.simulation.aiReady}
+                  />
+                </section>
+              )}
+
+            {props.isOwner ? (
+              <>
+                <ConsultantReviewBanner
+                  analysisId={props.analysisId}
+                  seasonName={props.seasonName}
+                  canRequestReview={props.canRequestReview}
+                  alreadyInReview={props.statusKey === "NEEDS_REVIEW"}
+                  hasConsultantNote={Boolean(props.consultantNote)}
+                />
+                <ConsultantChatInvite
+                  analysisId={props.analysisId}
+                  consultantName={props.consultantNote?.author}
+                  seasonName={props.seasonName}
+                />
+              </>
+            ) : null}
+          </div>
+
+          {props.isStaff && (props.staffTech || props.staffReview) && (
+            <div className="ar-body ar-staff-panel">
+              {props.staffTech && (
+                <div className="ar-staff-note">
+                  Contexto: {props.staffTech.context}
+                  {props.staffTech.contrastScore != null
+                    ? ` · Contraste ${props.staffTech.contrastScore.toFixed(0)}`
+                    : ""}
+                  {props.staffTech.contrastSource
+                    ? ` (${props.staffTech.contrastSource})`
+                    : ""}
+                  {props.staffTech.detectorProvider
+                    ? ` · Face ${props.staffTech.detectorProvider}`
+                    : ""}
+                  {props.staffTech.qualityBand
+                    ? ` · Qualidade ${qualityBandLabel[props.staffTech.qualityBand] || props.staffTech.qualityBand}`
+                    : ""}
+                </div>
+              )}
+
+              {props.staffReview && props.statusKey !== "APPROVED" && (
+                <ConsultantReviewForm
+                  analysisId={props.analysisId}
+                  seasons={props.staffReview.seasons}
+                  currentSeasonId={props.staffReview.currentSeasonId}
+                />
+              )}
             </div>
           )}
-
-          {props.staffReview && props.statusKey !== "APPROVED" && (
-            <ConsultantReviewForm
-              analysisId={props.analysisId}
-              seasons={props.staffReview.seasons}
-              currentSeasonId={props.staffReview.currentSeasonId}
-            />
-          )}
-        </div>
-      )}
         </div>
         <div className="ar-shell__rail ar-shell__rail--right" aria-hidden />
       </div>

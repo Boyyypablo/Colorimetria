@@ -8,22 +8,25 @@ export async function AppHeader() {
     session?.user?.role === "CONSULTANT" || session?.user?.role === "ADMIN";
 
   return (
-    <header className="shell flex items-center justify-between py-5">
+    <header className="shell flex items-center justify-between gap-4 py-4">
       <Link href="/" className="shrink-0">
         <GlowingLogo size="sm" bg="light" />
       </Link>
-      <nav className="flex items-center gap-3 text-sm">
+      <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm">
         {session ? (
           <>
             <Link href="/dashboard" className="opacity-80 hover:opacity-100">
-              Minhas leituras
+              Minhas cartelas
+            </Link>
+            <Link href="/conta" className="opacity-80 hover:opacity-100">
+              Meu perfil
             </Link>
             <Link href="/analyze" className="opacity-80 hover:opacity-100">
-              Nova leitura
+              Nova cartela
             </Link>
             {isStaff && (
               <Link href="/consultant" className="opacity-80 hover:opacity-100">
-                Validação
+                Desk
               </Link>
             )}
             {session.user.role === "ADMIN" && (

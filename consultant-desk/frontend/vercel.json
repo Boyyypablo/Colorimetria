@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api-desk/:path*",
+      "destination": "https://backend-nu-olive.vercel.app/:path*"
+    }
+  ]
+}
