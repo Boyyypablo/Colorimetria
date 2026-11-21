@@ -3,6 +3,10 @@
     {
       "source": "/api-desk/:path*",
       "destination": "https://backend-nu-olive.vercel.app/:path*"
+    },
+    {
+      "source": "/((?!api-desk(?:/|$)).*)",
+      "destination": "/index.html"
     }
   ]
 }
