@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "aprendizado/**",
+    "consultant-desk/**",
     "Design logo for Glowing/**",
   ]),
 ]);

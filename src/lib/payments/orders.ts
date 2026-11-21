@@ -206,7 +206,7 @@ export async function applyAsaasPaymentStatus(
   asaasStatus: string,
   asaasPaymentId?: string,
 ): Promise<PaymentOrder> {
-  let existing =
+  const existing =
     (asaasPaymentId
       ? await prisma.paymentOrder.findUnique({ where: { asaasPaymentId } })
       : null) ||
